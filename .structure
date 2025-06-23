@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Base directories to create
+dirs=(
+  ".github/workflows"
+  "examples"
+  "textual/app"
+  "textual/widgets"
+  "textual/layout"
+  "textual/events"
+  "textual/render"
+  "textual/styles"
+  "textual/util"
+  "tests"
+)
+
+# Files to touch (relative to repo root)
+files=(
+  ".github/workflows/ci.yml"
+  "examples/hello_world.v"
+  "textual/app/app.v"
+  "textual/app/runner.v"
+  "textual/widgets/label.v"
+  "textual/widgets/button.v"
+  "textual/layout/grid.v"
+  "textual/events/mouse.v"
+  "textual/render/canvas.v"
+  "textual/styles/style_parser.v"
+  "textual/util/logging.v"
+  "tests/app_test.v"
+  "tests/widget_test.v"
+  "Makefile"
+  "v.mod"
+  "README.md"
+)
+
+echo "Creating directories..."
+for d in "${dirs[@]}"; do
+  mkdir -p "$d"
+  echo "  mkdir -p $d"
+done
+
+echo "Creating files..."
+for f in "${files[@]}"; do
+  # ensure parent dir exists (for files outside of our list)
+  mkdir -p "$(dirname "$f")"
+  touch "$f"
+  echo "  touch $f"
+done
+
+echo "Populating v.mod..."
+cat > v.mod << 'EOF'
+Module {
+	name: 'vtextual'
+	description: 'vtextual'
+	version: '0.0.0'
+	license: 'MIT'
+	dependencies: []
+}
+EOF
+
+echo "Populating Makefile..."
+cat > Makefile << 'EOF'
+V=v
+FMT=$(V) fmt
+TEST=$(V) test
+BUILD=$(V) build
+
+.PHONY: all fmt lint test build clean
+
+all: fmt test build
+
+fmt:
+	@echo "Running v fmt..."
+	$(FMT) .
+
+lint: fmt  # v fmt doubles as linter
+
+test:
+	@echo "Running tests..."
+	$(TEST) .
+
+build:
+	@echo "Building example..."
+	$(BUILD) -o bin/hello_world examples/hello_world.v
+
+clean:
+	@echo "Cleaning artifacts..."
+	rm -rf bin/
+EOF
+
+echo "Populating README.md..."
+cat > README.md << 'EOF'
+# Textual-v
+
+A V port of the Textual TUI framework (https://github.com/Textualize/textual).
+
+## Project structure
+
+- **textual/** — core modules (app, widgets, layout, events, render, styles, util)
+- **examples/** — minimal demos
+- **tests/** — unit & integration tests
+- **.github/workflows/** — CI config
+- **Makefile**, **v.mod**, **README.md**
+
+## Getting started
+
+```bash
+# Scaffolded; run:
+make all
+

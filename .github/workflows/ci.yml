@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        v_version: ['0.5.0']  # adjust to target V releases
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install V
+        run: |
+          if [ runner.os == 'Windows' ]; then
+            choco install v
+          else
+            curl -fsSL https://vlang.io/install.sh | bash
+            export PATH="$HOME/.vlang/bin:$PATH"
+          fi
+
+      - name: Verify V version
+        run: v version
+
+      - name: Format check
+        run: v fmt -verify .
+
+      - name: Run tests
+        run: v test .
+
+      - name: Build example
+        run: v build -o hello examples/hello_world.v
