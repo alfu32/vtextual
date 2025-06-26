@@ -103,14 +103,18 @@ struct LayoutBox {
 //–– Entry point ––
 pub fn render_console(root &Node, viewport_width int, viewport_height int) {
 	// 1) compute layout boxes
+	println("render_console 1) compute layout boxes")
 	mut layouts := []LayoutBox{}
 	compute_layout(root, 0, 0, viewport_width, viewport_height, mut layouts)
 	// 2) paint into canvas
+	println("render_console 2) create canvas")
 	mut cvs := new_canvas(viewport_width, viewport_height, root.get_style('background-color'))
+	println("render_console 2.1) paint into canvas")
 	for lb in layouts {
 		paint_box(mut cvs, lb)
 	}
 	// 3) flush to stdout
+	println("render_console 3) flush to stdout")
 	print_canvas(cvs)
 }
 
@@ -244,6 +248,7 @@ fn paint_box(mut cvs Canvas, lb LayoutBox) {
 	style_fns := style_formatters(fs_val)
 
 	// 1) fill background
+	println("  paint_box 1) fill background")
 	for yy in lb.y .. math.min(cvs.height, lb.y + lb.height) {
 		for xx in lb.x .. math.min(cvs.width, lb.x + lb.width) {
 			cvs.cells[yy][xx].bg_fmt = bg_fmt
@@ -251,18 +256,22 @@ fn paint_box(mut cvs Canvas, lb LayoutBox) {
 	}
 
 	// 2) draw border (uses fg_fmt for the line runes)
+	println("  paint_box 2.1) parse_border_style (uses fg_fmt for the line runes)")
 	if parse_border_style(bs_val) != .none {
+		println("  paint_box 2.2) draw_border (uses fg_fmt for the line runes)")
 		draw_border(mut cvs, lb.x, lb.y, lb.width, lb.height, parse_border_style(bs_val),
 			fg_fmt, bg_fmt) // draw_border will call fg_formatter internally
 	}
 
 	// 3) paint text with all three layers
+	println("  paint_box 3) paint text with all three layers")
 	if n.text.len > 0 {
 		paint_text_with_formatters(mut cvs, n.text, lb.x, lb.y, lb.width, lb.height, fg_fmt,
 			bg_fmt, style_fns, n.get_style('white-space'))
 	}
 
 	// 4) scrollbars etc… (analogous)
+	println("  paint_box 4) scrollbars etc… (analogous)")
 }
 
 //–– Unit parsing ––
@@ -300,7 +309,7 @@ fn parse_box_values(val string, parent int) (int, int, int, int) {
 }
 
 fn draw_border(mut cvs Canvas, x int, y int, w int, h int, st BorderStyle, fg_fmt StringTransform, bg_fmt StringTransform) {
-	// choose characters
+	println("    draw_border 1) choose characters")
 	mut cch := ` `
 	mut hch := ` `
 	mut vch := ` `
@@ -322,7 +331,12 @@ fn draw_border(mut cvs Canvas, x int, y int, w int, h int, st BorderStyle, fg_fm
 		}
 		else {}
 	}
-	// top/bottom
+	println("cvs ${cvs.width}x${cvs.height}")
+	println("corners ${x}x${y}")
+	println("corners ${x + w - 1}x${y}")
+	println("corners ${x + w - 1}x${y + h - 1}")
+	println("corners ${x}x${y + h - 1}")
+	println("    draw_border 2) top/bottom")
 	for xx in x .. x + w {
 		if y >= 0 && y < cvs.height {
 			cvs.cells[y][xx].ch = hch
@@ -335,7 +349,7 @@ fn draw_border(mut cvs Canvas, x int, y int, w int, h int, st BorderStyle, fg_fm
 			cvs.cells[y + h - 1][xx].bg_fmt = bg_fmt
 		}
 	}
-	// left/right
+	println("    draw_border 3) left/right")
 	for yy in y .. y + h {
 		if x >= 0 && x < cvs.width {
 			cvs.cells[yy][x].ch = vch
@@ -348,6 +362,7 @@ fn draw_border(mut cvs Canvas, x int, y int, w int, h int, st BorderStyle, fg_fm
 			cvs.cells[yy][x + w - 1].bg_fmt = bg_fmt
 		}
 	}
+	println("    draw_border 4) corners")
 	cvs.cells[y][x].ch = cch
 	cvs.cells[y][x + w - 1].ch = cch
 	cvs.cells[y + h - 1][x].ch = cch
