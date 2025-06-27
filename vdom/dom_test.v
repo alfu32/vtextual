@@ -1,8 +1,10 @@
 module vdom
 
+import term
+
 fn test_css_parser() {
 	println(DimensionType.auto)
-	mut style := css_style_parse('display:block; width:50%; border:solid #f00; layout:rtlttb; background:blue;')
+	mut style := css_style_parse('display:block; width:50%; border:solid #f00; layout:rtlttb; background:22;')
 	println(style)
 }
 
@@ -13,10 +15,11 @@ fn test_css_dimension_parse() {
 		dim := css_dimension_parse(s)
 		println('${s} => typ=${dim.typ}, value=${dim.value}')
 	}
+	cc := term.bg_hex(1234233, '123')
 }
 
 fn test_css_style_parse() {
-	input := 'display:block; width:50%; border:dashed #ff0; layout:RTLBTT; background:blue; color:#123456; padding:2; margin:1fr;'
+	input := 'display:block; width:50%; border:dashed #ff0; layout:RTLBTT; background:t47; color:t23; padding:2; margin:1fr;'
 	println('--- test_css_style_parse ---')
 	println('Input: "${input}"')
 	style := css_style_parse(input)
@@ -25,8 +28,8 @@ fn test_css_style_parse() {
 	println('border.style  = ${style.border.style}')
 	println('border.color  = ${style.border.color}')
 	println('layout        = ${style.layout}')
-	println('background    = ${style.background}')
-	println('color         = ${style.color}')
+	println('background    = ${style.text_style.bg}')
+	println('color         = ${style.text_style.fg}')
 	println('padding       = typ=${style.padding.typ}, value=${style.padding.value}')
 	println('margin        = typ=${style.margin.typ}, value=${style.margin.value}')
 }

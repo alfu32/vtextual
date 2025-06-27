@@ -2,6 +2,8 @@ module vdom
 
 import encoding.xml
 import strings
+import term
+import math
 
 // callback type for event listeners
 pub type EventCallback = fn (node &DomNode)
@@ -20,6 +22,10 @@ pub struct CSSDimension {
 pub mut:
 	typ   DimensionType
 	value f64
+}
+
+pub fn (cssd CSSDimension) to_string() string {
+	return '${cssd.value}${cssd.typ.str()}'
 }
 
 // returns a CSSDimension with defaults (auto, 0)
@@ -97,10 +103,21 @@ pub enum BorderStyle {
 	solid
 }
 
+// overflow enum
+pub enum CSSOverflow {
+	visible
+	scroll
+	hidden
+}
+
 pub struct CSSBorder {
 pub mut:
 	style BorderStyle
 	color string
+}
+
+pub fn (cssb CSSBorder) to_string() string {
+	return '${cssb.style.str()} ${cssb.color}'
 }
 
 // returns a CSSBorder with defaults (none, "")
@@ -115,6 +132,10 @@ pub struct CSSStyle {
 pub mut:
 	display    CSSDisplay   = .inline
 	position   CSSPosition  = .none
+	top        CSSDimension = css_dimension_new()
+	left       CSSDimension = css_dimension_new()
+	right      CSSDimension = css_dimension_new()
+	bottom     CSSDimension = css_dimension_new()
 	width      CSSDimension = css_dimension_new()
 	min_width  CSSDimension = CSSDimension{
 		typ:   .chars
@@ -144,8 +165,117 @@ pub mut:
 	border     CSSBorder       = css_border_new()
 	box_sizing BoxSizing       = .content_box
 	layout     LayoutDirection = .ltr_ttb
-	background string          = 'none'
-	color      string          = 'default'
+	text_style CssColorConfig  = CssColorConfig{
+		styles: []
+		fg:     0xeeeeee
+		bg:     0x222222
+		custom: ''
+	}
+	overflow_x CSSOverflow = .visible
+	overflow_y CSSOverflow = .visible
+}
+
+pub fn (css CSSStyle) to_string() string {
+	stl := css_style_new()
+	mut txt := []string{}
+	if stl.display != css.display {
+		txt << 'display=${css.display.str()}'
+	}
+	if stl.position != css.position {
+		txt << 'position=${css.position.str()}'
+	}
+	if stl.top != css.top {
+		txt << 'top=${css.top.to_string()}'
+	}
+	if stl.left != css.left {
+		txt << 'left=${css.left.to_string()}'
+	}
+	if stl.right != css.right {
+		txt << 'right=${css.right.to_string()}'
+	}
+	if stl.bottom != css.bottom {
+		txt << 'bottom=${css.bottom.to_string()}'
+	}
+	if stl.width != css.width {
+		txt << 'width=${css.width.to_string()}'
+	}
+	if stl.min_width != css.min_width {
+		txt << 'min_width=${css.min_width.to_string()}'
+	}
+	if stl.max_width != css.max_width {
+		txt << 'max_width=${css.max_width.to_string()}'
+	}
+	if stl.height != css.height {
+		txt << 'height=${css.height.to_string()}'
+	}
+	if stl.min_height != css.min_height {
+		txt << 'min_height=${css.min_height.to_string()}'
+	}
+	if stl.max_height != css.max_height {
+		txt << 'max_height=${css.max_height.to_string()}'
+	}
+	if stl.margin != css.margin {
+		txt << 'margin=${css.margin.to_string()}'
+	}
+	if stl.padding != css.padding {
+		txt << 'padding=${css.padding.to_string()}'
+	}
+	if stl.border != css.border {
+		txt << 'border=${css.border.to_string()}'
+	}
+	if stl.box_sizing != css.box_sizing {
+		txt << 'box_sizing=${css.box_sizing.str()}'
+	}
+	if stl.layout != css.layout {
+		txt << 'layout=${css.layout.str()}'
+	}
+	if stl.text_style != css.text_style {
+		txt << 'text_style=${css.text_style.to_string()}'
+	}
+	if stl.overflow_x != css.overflow_x {
+		txt << 'overflow_x=${css.overflow_x.str()}'
+	}
+	if stl.overflow_y != css.overflow_y {
+		txt << 'overflow_y=${css.overflow_y.str()}'
+	}
+	return txt.join(';')
+}
+
+struct CssColorConfig {
+pub mut:
+	styles []term.TextStyle
+	fg     u32
+	bg     u32
+	custom string
+}
+
+pub fn (ccc CssColorConfig) to_string() string {
+	return 'styles:${ccc.styles};fg:${ccc.fg};bg:${ccc.bg}'
+}
+
+pub fn css_color_parse(text string, default u32) u32 {
+	tt := text.trim(' ')
+	return match tt[0].str() {
+		'#' {
+			u32(tt.substr(1, tt.len).parse_int(16, 32) or { default })
+		}
+		't' {
+			match tt.substr(1, tt.len) {
+				'black' { math.divide_truncated[u32](default, 10).quot * 10 + 0 }
+				'red' { math.divide_truncated[u32](default, 10).quot * 10 + 1 }
+				'green' { math.divide_truncated[u32](default, 10).quot * 10 + 2 }
+				'yellow' { math.divide_truncated[u32](default, 10).quot * 10 + 3 }
+				'blue' { math.divide_truncated[u32](default, 10).quot * 10 + 4 }
+				'magenta' { math.divide_truncated[u32](default, 10).quot * 10 + 5 }
+				'cyan' { math.divide_truncated[u32](default, 10).quot * 10 + 6 }
+				'white' { math.divide_truncated[u32](default, 10).quot * 10 + 7 }
+				else { default }
+			}
+		}
+		else {
+			default
+		}
+	}
 }
 
 // returns a CSSStyle initialized with all defaults
@@ -185,6 +315,18 @@ pub fn css_style_parse(style_str string) CSSStyle {
 					'none' { s.position = .none }
 					else {}
 				}
+			}
+			'top' {
+				s.top = css_dimension_parse(val)
+			}
+			'left' {
+				s.left = css_dimension_parse(val)
+			}
+			'right' {
+				s.right = css_dimension_parse(val)
+			}
+			'bottom' {
+				s.bottom = css_dimension_parse(val)
 			}
 			'width' {
 				s.width = css_dimension_parse(val)
@@ -239,10 +381,38 @@ pub fn css_style_parse(style_str string) CSSStyle {
 				}
 			}
 			'background' {
-				s.background = val
+				s.text_style.bg = css_color_parse(val, 30)
 			}
 			'color' {
-				s.color = val
+				s.text_style.fg = css_color_parse(val, 40)
+			}
+			'text-decoration' {
+				s.text_style.styles = []
+				for tex in val.split(',') {
+					match tex.trim(' ').to_lower() {
+						'bold' { s.text_style.styles << .bold }
+						'dim' { s.text_style.styles << .dim }
+						'italic' { s.text_style.styles << .italic }
+						'underline' { s.text_style.styles << .underline }
+						'blink' { s.text_style.styles << .blink }
+						'reverse' { s.text_style.styles << .reverse }
+						else {}
+					}
+				}
+			}
+			'overflow-x' {
+				match val {
+					'scroll' { s.overflow_x = .scroll }
+					'hidden' { s.overflow_x = .hidden }
+					else { s.overflow_x = .visible }
+				}
+			}
+			'overflow-y' {
+				match val {
+					'scroll' { s.overflow_y = .scroll }
+					'hidden' { s.overflow_y = .hidden }
+					else { s.overflow_y = .visible }
+				}
 			}
 			else {}
 		}
