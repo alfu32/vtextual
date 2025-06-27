@@ -1,6 +1,7 @@
 module vdom
 
 import encoding.xml
+import strings
 
 // callback type for event listeners
 pub type EventCallback = fn (node &DomNode)
@@ -322,7 +323,7 @@ fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
 			}
 			xml.XMLCData {
 				&DomNode{
-					tag:             '#text'
+					tag:             '#cdata'
 					attributes:      map[string]string{}
 					style:           css_style_new()
 					event_listeners: map[string][]EventCallback{}
@@ -346,18 +347,65 @@ fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
 			}
 			else {
 				&DomNode{
-					tag:             '#error'
+					tag:             '#text'
 					attributes:      map[string]string{}
 					style:           css_style_new()
 					event_listeners: map[string][]EventCallback{}
 					children:        []&DomNode{}
 					parent:          voidptr(node)
 					dirty:           true
-					text:            ''
+					text:            '${child.str().replace("xml.XMLNodeContents('", '').replace("')",
+						'')}'
 				}
 			}
 		}
 		node.children << child_dom
 	}
 	return node
+}
+
+// ─── DomNode HTML/Text Serializers ───────────────────────────────────────────────
+
+pub fn (node &DomNode) inner_text() string {
+	mut sb := strings.new_builder(32)
+	for child in node.children {
+		// text nodes carry their content in .text; element nodes recurse
+		if child.tag == '#text' {
+			sb.write_string(child.text)
+		} else {
+			sb.write_string(child.inner_text())
+		}
+	}
+	return sb.str()
+}
+
+pub fn (node &DomNode) inner_html() string {
+	mut sb := strings.new_builder(64)
+	for child in node.children {
+		sb.write_string(child.outer_html())
+	}
+	return sb.str()
+}
+
+pub fn (node &DomNode) outer_html() string {
+	// text node
+	if node.tag == '#text' {
+		return node.text
+	}
+	// comment node
+	if node.tag == '#comment' {
+		return '<!--${node.text}-->'
+	}
+	// element node
+	// serialize attributes
+	mut attrs := strings.new_builder(32)
+	for key, val in node.attributes {
+		attrs.write_string(' ')
+		attrs.write_string(key)
+		attrs.write_string('="')
+		attrs.write_string(val)
+		attrs.write_string('"')
+	}
+	// opening tag + children + closing tag
+	return '<${node.tag}${attrs.str()}>' + node.inner_html() + '</${node.tag}>'
 }
