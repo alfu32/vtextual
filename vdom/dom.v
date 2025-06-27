@@ -21,10 +21,45 @@ pub mut:
 	value f64
 }
 
+// returns a CSSDimension with defaults (auto, 0)
 pub fn css_dimension_new() CSSDimension {
 	return CSSDimension{
 		typ:   .auto
-		value: 0.0
+		value: 0
+	}
+}
+
+// parse “auto”, “none”, “50%”, “2fr”, or “10” (chars)
+pub fn css_dimension_parse(val string) CSSDimension {
+	lc := val.trim_space().to_lower()
+	if lc == 'auto' {
+		return CSSDimension{
+			typ:   .auto
+			value: 0
+		}
+	}
+	if lc == 'none' {
+		return CSSDimension{
+			typ:   .none
+			value: 0
+		}
+	}
+	if lc.ends_with('%') {
+		return CSSDimension{
+			typ:   .percent
+			value: lc.trim_right('%').f64()
+		}
+	}
+	if lc.ends_with('fr') {
+		return CSSDimension{
+			typ:   .fraction
+			value: lc.trim_right('fr').f64()
+		}
+	}
+	// otherwise assume chars
+	return CSSDimension{
+		typ:   .chars
+		value: lc.f64()
 	}
 }
 
@@ -67,14 +102,19 @@ pub mut:
 	color string
 }
 
+// returns a CSSBorder with defaults (none, "")
+pub fn css_border_new() CSSBorder {
+	return CSSBorder{
+		style: .none
+		color: ''
+	}
+}
+
 pub struct CSSStyle {
 pub mut:
 	display    CSSDisplay   = .inline
 	position   CSSPosition  = .none
-	width      CSSDimension = CSSDimension{
-		typ:   .auto
-		value: 0
-	}
+	width      CSSDimension = css_dimension_new()
 	min_width  CSSDimension = CSSDimension{
 		typ:   .chars
 		value: 0
@@ -83,10 +123,7 @@ pub mut:
 		typ:   .none
 		value: 0
 	}
-	height     CSSDimension = CSSDimension{
-		typ:   .auto
-		value: 0
-	}
+	height     CSSDimension = css_dimension_new()
 	min_height CSSDimension = CSSDimension{
 		typ:   .chars
 		value: 0
@@ -103,113 +140,21 @@ pub mut:
 		typ:   .chars
 		value: 0
 	}
-	border     CSSBorder = CSSBorder{
-		style: .none
-		color: ''
-	}
+	border     CSSBorder       = css_border_new()
 	box_sizing BoxSizing       = .content_box
 	layout     LayoutDirection = .ltr_ttb
 	background string          = 'none'
 	color      string          = 'default'
 }
 
-// explicit constructor with all your defaults
+// returns a CSSStyle initialized with all defaults
 pub fn css_style_new() CSSStyle {
-	return CSSStyle{
-		display:    .inline
-		position:   .none
-		width:      CSSDimension{
-			typ:   .auto
-			value: 0
-		}
-		min_width:  CSSDimension{
-			typ:   .chars
-			value: 0
-		}
-		max_width:  CSSDimension{
-			typ:   .none
-			value: 0
-		}
-		height:     CSSDimension{
-			typ:   .auto
-			value: 0
-		}
-		min_height: CSSDimension{
-			typ:   .chars
-			value: 0
-		}
-		max_height: CSSDimension{
-			typ:   .none
-			value: 0
-		}
-		margin:     CSSDimension{
-			typ:   .chars
-			value: 0
-		}
-		padding:    CSSDimension{
-			typ:   .chars
-			value: 0
-		}
-		border:     CSSBorder{
-			style: .none
-			color: ''
-		}
-		box_sizing: .content_box
-		layout:     .ltr_ttb
-		background: 'none'
-		color:      'default'
-	}
+	return CSSStyle{}
 }
 
-// ─── DOM MODEL ────────────────────────────────────────────────────────────────────
-
-@[heap]
-pub struct DomNode {
-pub mut:
-	tag             string
-	text            string
-	attributes      map[string]string
-	style           CSSStyle
-	event_listeners map[string][]EventCallback
-	children        []&DomNode
-	parent          &DomNode
-	dirty           bool
-}
-
-pub fn dom_node_new() DomNode {
-	return DomNode{
-		tag:             ''
-		text:            ''
-		attributes:      {}
-		style:           css_style_new()
-		event_listeners: {}
-		children:        []
-		parent:          unsafe { nil }
-		dirty:           true
-	}
-}
-
-// wrapper holding the document root
-pub struct DOM {
-pub:
-	root &DomNode
-}
-
-pub fn dom_new() DOM {
-	return DOM{
-		root: unsafe { nil }
-	}
-}
-
-// static-style parser: XML → DomNode tree
-pub fn dom_node_from_string(xml_frag string) &DomNode {
-	doc := xml.XMLDocument.from_string(xml_frag) or { panic('XML parsing failed: ${err}') }
-	return build_dom_node(doc.root, unsafe { nil })
-}
-
-// parse a full “key:val;…” declaration string
-pub fn css_style_from_string(style_str string) CSSStyle {
-	mut s := css_style_new() // start with defaults
+// parse a full “key:val;…” declaration string into CSSStyle
+pub fn css_style_parse(style_str string) CSSStyle {
+	mut s := css_style_new()
 	for decl in style_str.split(';') {
 		trimmed := decl.trim_space()
 		if trimmed == '' {
@@ -241,28 +186,28 @@ pub fn css_style_from_string(style_str string) CSSStyle {
 				}
 			}
 			'width' {
-				s.width = parse_dimension(val)
+				s.width = css_dimension_parse(val)
 			}
 			'min-width' {
-				s.min_width = parse_dimension(val)
+				s.min_width = css_dimension_parse(val)
 			}
 			'max-width' {
-				s.max_width = parse_dimension(val)
+				s.max_width = css_dimension_parse(val)
 			}
 			'height' {
-				s.height = parse_dimension(val)
+				s.height = css_dimension_parse(val)
 			}
 			'min-height' {
-				s.min_height = parse_dimension(val)
+				s.min_height = css_dimension_parse(val)
 			}
 			'max-height' {
-				s.max_height = parse_dimension(val)
+				s.max_height = css_dimension_parse(val)
 			}
 			'margin' {
-				s.margin = parse_dimension(val)
+				s.margin = css_dimension_parse(val)
 			}
 			'padding' {
-				s.padding = parse_dimension(val)
+				s.padding = css_dimension_parse(val)
 			}
 			'border' {
 				parts2 := val.split(' ')
@@ -304,59 +249,70 @@ pub fn css_style_from_string(style_str string) CSSStyle {
 	return s
 }
 
-// parse_dimension helper to parse “auto”, “none”, “50%”, “2fr”, or “10” (chars)
-fn parse_dimension(val string) CSSDimension {
-	lc := val.trim_space().to_lower()
-	if lc == 'auto' {
-		return CSSDimension{
-			typ:   .auto
-			value: 0
-		}
-	}
-	if lc == 'none' {
-		return CSSDimension{
-			typ:   .none
-			value: 0
-		}
-	}
-	if lc.ends_with('%') {
-		num := lc.trim_right('%').f64()
-		return CSSDimension{
-			typ:   .percent
-			value: num
-		}
-	}
-	if lc.ends_with('fr') {
-		num := lc.trim_right('fr').f64()
-		return CSSDimension{
-			typ:   .fraction
-			value: num
-		}
-	}
-	// otherwise assume chars
-	return CSSDimension{
-		typ:   .chars
-		value: lc.f64()
+// ─── DOM MODEL ────────────────────────────────────────────────────────────────────
+
+pub struct DomNode {
+pub mut:
+	tag             string
+	attributes      map[string]string
+	style           CSSStyle
+	event_listeners map[string][]EventCallback
+	children        []&DomNode
+	parent          voidptr
+	dirty           bool
+	text            string
+}
+
+// returns a DomNode with all defaults
+pub fn dom_node_new() DomNode {
+	return DomNode{
+		tag:             ''
+		attributes:      map[string]string{}
+		style:           css_style_new()
+		event_listeners: map[string][]EventCallback{}
+		children:        []&DomNode{}
+		parent:          unsafe { nil }
+		dirty:           false
+		text:            ''
 	}
 }
 
-fn build_dom_node1(x xml.XMLNodeContents, parent &DomNode) &DomNode {
-	mut node := dom_node_new()
-	return &node
+pub struct DOM {
+pub:
+	root &DomNode
 }
 
-// // build_dom_node helper: recurse xml.Element → DomNode
+// returns a DOM with a nil root
+pub fn dom_new() DOM {
+	return DOM{
+		root: unsafe { nil }
+	}
+}
+
+// parse an XML fragment into a DomNode tree
+pub fn dom_node_parse(xml_frag string) &DomNode {
+	doc := xml.XMLDocument.from_string(xml_frag) or { panic('XML parsing failed: ${err}') }
+	return build_dom_node(doc.root, unsafe { nil })
+}
+
+// parse the XML fragment and wrap it in a DOM
+pub fn dom_parse(xml_frag string) DOM {
+	return DOM{
+		root: dom_node_parse(xml_frag)
+	}
+}
+
 fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
-	// create the element node, initializing style from any inline “style” attr
 	style_str := x.attributes['style'] or { '' }
 	mut node := &DomNode{
 		tag:             x.name
 		attributes:      x.attributes.clone()
-		style:           css_style_from_string(style_str)
+		style:           css_style_parse(style_str)
 		event_listeners: map[string][]EventCallback{}
 		children:        []&DomNode{}
 		parent:          parent
 		dirty:           true
+		text:            ''
 	}
 	// recurse into the mixed-content children
 	for child in x.children {
@@ -368,11 +324,12 @@ fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
 				&DomNode{
 					tag:             '#text'
 					attributes:      map[string]string{}
-					style:           css_style_new() // no inline on text
+					style:           css_style_new()
 					event_listeners: map[string][]EventCallback{}
 					children:        []&DomNode{}
 					parent:          voidptr(node)
 					dirty:           true
+					text:            child.text
 				}
 			}
 			xml.XMLComment {
@@ -384,10 +341,10 @@ fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
 					children:        []&DomNode{}
 					parent:          voidptr(node)
 					dirty:           true
+					text:            child.text
 				}
 			}
 			else {
-				// any other variant
 				&DomNode{
 					tag:             '#error'
 					attributes:      map[string]string{}
@@ -396,17 +353,11 @@ fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
 					children:        []&DomNode{}
 					parent:          voidptr(node)
 					dirty:           true
+					text:            ''
 				}
 			}
 		}
 		node.children << child_dom
 	}
 	return node
-}
-
-// convenience constructor
-pub fn dom_from_string(xml_frag string) DOM {
-	return DOM{
-		root: dom_node_from_string(xml_frag)
-	}
 }
