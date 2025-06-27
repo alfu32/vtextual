@@ -354,8 +354,9 @@ fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
 					children:        []&DomNode{}
 					parent:          voidptr(node)
 					dirty:           true
-					text:            '${child.str().replace("xml.XMLNodeContents('", '').replace("')",
-						'')}'
+					text:            child.str()
+						.replace("xml.XMLNodeContents('", '')
+						.replace("')", '')
 				}
 			}
 		}

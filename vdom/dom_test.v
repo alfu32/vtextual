@@ -53,10 +53,10 @@ fn test_build_dom_node() {
 fn test_inner_outer_text_html() {
 	xml_src := '<div id="greet"><span>Hello</span> World<!--x--></div>'
 	root := dom_node_parse(xml_src)
-	println(root.outer_html())
+	println('root.outer_html(): ${root.outer_html()}')
 	// prints: <div id="greet"><span>Hello</span> World<!--x--></div>
-	println(root.inner_html())
+	println('root.inner_html(): ${root.inner_html()}')
 	// prints: <span>Hello</span> World<!--x-->
-	println(root.inner_text())
+	println('root.inner_text(): ${root.inner_text()}')
 	// prints: Hello World
 }
