@@ -3,7 +3,7 @@ module vdom
 import encoding.xml
 import strings
 import term
-import math
+import rand
 
 // callback type for event listeners
 pub type EventCallback = fn (node &DomNode)
@@ -26,6 +26,10 @@ pub mut:
 
 pub fn (cssd CSSDimension) to_string() string {
 	return '${cssd.value}${cssd.typ.str()}'
+}
+
+pub fn (cssd CSSDimension) str() string {
+	return cssd.to_string()
 }
 
 // returns a CSSDimension with defaults (auto, 0)
@@ -120,6 +124,10 @@ pub fn (cssb CSSBorder) to_string() string {
 	return '${cssb.style.str()} ${cssb.color}'
 }
 
+pub fn (cssb CSSBorder) str() string {
+	return '${cssb.style.str()} ${cssb.color}'
+}
+
 // returns a CSSBorder with defaults (none, "")
 pub fn css_border_new() CSSBorder {
 	return CSSBorder{
@@ -179,66 +187,70 @@ pub fn (css CSSStyle) to_string() string {
 	stl := css_style_new()
 	mut txt := []string{}
 	if stl.display != css.display {
-		txt << 'display=${css.display.str()}'
+		txt << 'display:${css.display.str()}'
 	}
 	if stl.position != css.position {
-		txt << 'position=${css.position.str()}'
+		txt << 'position:${css.position.str()}'
 	}
 	if stl.top != css.top {
-		txt << 'top=${css.top.to_string()}'
+		txt << 'top:${css.top.to_string()}'
 	}
 	if stl.left != css.left {
-		txt << 'left=${css.left.to_string()}'
+		txt << 'left:${css.left.to_string()}'
 	}
 	if stl.right != css.right {
-		txt << 'right=${css.right.to_string()}'
+		txt << 'right:${css.right.to_string()}'
 	}
 	if stl.bottom != css.bottom {
-		txt << 'bottom=${css.bottom.to_string()}'
+		txt << 'bottom:${css.bottom.to_string()}'
 	}
 	if stl.width != css.width {
-		txt << 'width=${css.width.to_string()}'
+		txt << 'width:${css.width.to_string()}'
 	}
 	if stl.min_width != css.min_width {
-		txt << 'min_width=${css.min_width.to_string()}'
+		txt << 'min_width:${css.min_width.to_string()}'
 	}
 	if stl.max_width != css.max_width {
-		txt << 'max_width=${css.max_width.to_string()}'
+		txt << 'max_width:${css.max_width.to_string()}'
 	}
 	if stl.height != css.height {
-		txt << 'height=${css.height.to_string()}'
+		txt << 'height:${css.height.to_string()}'
 	}
 	if stl.min_height != css.min_height {
-		txt << 'min_height=${css.min_height.to_string()}'
+		txt << 'min_height:${css.min_height.to_string()}'
 	}
 	if stl.max_height != css.max_height {
-		txt << 'max_height=${css.max_height.to_string()}'
+		txt << 'max_height:${css.max_height.to_string()}'
 	}
 	if stl.margin != css.margin {
-		txt << 'margin=${css.margin.to_string()}'
+		txt << 'margin:${css.margin.to_string()}'
 	}
 	if stl.padding != css.padding {
-		txt << 'padding=${css.padding.to_string()}'
+		txt << 'padding:${css.padding.to_string()}'
 	}
 	if stl.border != css.border {
-		txt << 'border=${css.border.to_string()}'
+		txt << 'border:${css.border.to_string()}'
 	}
 	if stl.box_sizing != css.box_sizing {
-		txt << 'box_sizing=${css.box_sizing.str()}'
+		txt << 'box_sizing:${css.box_sizing.str()}'
 	}
 	if stl.layout != css.layout {
-		txt << 'layout=${css.layout.str()}'
+		txt << 'layout:${css.layout.str()}'
 	}
 	if stl.text_style != css.text_style {
-		txt << 'text_style=${css.text_style.to_string()}'
+		txt << 'text_style:${css.text_style.to_string()}'
 	}
 	if stl.overflow_x != css.overflow_x {
-		txt << 'overflow_x=${css.overflow_x.str()}'
+		txt << 'overflow_x:${css.overflow_x.str()}'
 	}
 	if stl.overflow_y != css.overflow_y {
-		txt << 'overflow_y=${css.overflow_y.str()}'
+		txt << 'overflow_y:${css.overflow_y.str()}'
 	}
-	return txt.join(';')
+	return txt.join(',')
+}
+
+pub fn (css CSSStyle) str() string {
+	return '{${css.to_string()}}'
 }
 
 struct CssColorConfig {
@@ -250,30 +262,37 @@ pub mut:
 }
 
 pub fn (ccc CssColorConfig) to_string() string {
-	return 'styles:${ccc.styles};fg:${ccc.fg};bg:${ccc.bg}'
+	return 'decoration:${ccc.styles};fg:#${ccc.fg:06x};bg:#${ccc.bg:06x}'
+}
+
+pub fn (ccc CssColorConfig) str() string {
+	return '{styles:[${ccc.styles}],fg:0x${ccc.fg:06x},bg:0x${ccc.bg:06x}}'
 }
 
 pub fn css_color_parse(text string, default u32) u32 {
+	named_colors := {
+		'black':   u32(0x000000)
+		'red':     0xdd0000
+		'green':   0x00dd00
+		'yellow':  0xeeee00
+		'blue':    0x0000dd
+		'magenta': 0xdd00dd
+		'cyan':    0x00dddd
+		'white':   0xeeeeee
+	}
+
 	tt := text.trim(' ')
-	return match tt[0].str() {
-		'#' {
-			u32(tt.substr(1, tt.len).parse_int(16, 32) or { default })
-		}
-		't' {
-			match tt.substr(1, tt.len) {
-				'black' { math.divide_truncated[u32](default, 10).quot * 10 + 0 }
-				'red' { math.divide_truncated[u32](default, 10).quot * 10 + 1 }
-				'green' { math.divide_truncated[u32](default, 10).quot * 10 + 2 }
-				'yellow' { math.divide_truncated[u32](default, 10).quot * 10 + 3 }
-				'blue' { math.divide_truncated[u32](default, 10).quot * 10 + 4 }
-				'magenta' { math.divide_truncated[u32](default, 10).quot * 10 + 5 }
-				'cyan' { math.divide_truncated[u32](default, 10).quot * 10 + 6 }
-				'white' { math.divide_truncated[u32](default, 10).quot * 10 + 7 }
-				else { default }
+
+	return if tt in named_colors {
+		named_colors[tt]
+	} else {
+		match tt[0].str() {
+			'#' {
+				u32(tt.substr(1, tt.len).parse_int(16, 32) or { default })
 			}
-		}
-		else {
-			default
+			else {
+				default
+			}
 		}
 	}
 }
@@ -424,6 +443,7 @@ pub fn css_style_parse(style_str string) CSSStyle {
 
 pub struct DomNode {
 pub mut:
+	id              string = rand.uuid_v4()
 	tag             string
 	attributes      map[string]string
 	style           CSSStyle
@@ -437,6 +457,7 @@ pub mut:
 // returns a DomNode with all defaults
 pub fn dom_node_new() DomNode {
 	return DomNode{
+		id:              rand.uuid_v4()
 		tag:             ''
 		attributes:      map[string]string{}
 		style:           css_style_new()
@@ -449,8 +470,10 @@ pub fn dom_node_new() DomNode {
 }
 
 pub struct DOM {
-pub:
-	root &DomNode
+pub mut:
+	width  int
+	height int
+	root   &DomNode
 }
 
 // returns a DOM with a nil root
@@ -468,8 +491,22 @@ pub fn dom_node_parse(xml_frag string) &DomNode {
 
 // parse the XML fragment and wrap it in a DOM
 pub fn dom_parse(xml_frag string) DOM {
+	mut root := dom_node_new()
+	root.style.width = CSSDimension{
+		typ:   .chars
+		value: 120
+	}
+	root.style.height = CSSDimension{
+		typ:   .chars
+		value: 50
+	}
+	root.children = [
+		dom_node_parse(xml_frag),
+	]
 	return DOM{
-		root: dom_node_parse(xml_frag)
+		width:  120
+		height: 50
+		root:   &root
 	}
 }
 

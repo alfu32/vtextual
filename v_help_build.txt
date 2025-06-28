@@ -137,11 +137,11 @@ NB: the build flags are shared with the run command too:
         (V constants, and module init() functions are evaluated before `main()` is called)
 
     NB: You can also select specific functions for profiling. For example:
-        v -profile-fns println,i64_str -profile - run examples/hanoi.v
+        v -profile-fns dump,i64_str -profile - run examples/hanoi.v
         In this case, the profile counters will be updated only for them,
         *and* for the functions that they call.
         The profile result (after the program finishes), will look similar to this:
-          127          0.721ms           5680ns println
+          127          0.721ms           5680ns dump
           127          0.693ms           5456ns _writeln_to_fd
           127          0.565ms           4449ns _write_buf_to_fd
           127          0.045ms            353ns _v_malloc

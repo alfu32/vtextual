@@ -9,8 +9,8 @@ pub struct Canvas {
 
 // ─── RENDERER ───────────────────────────────────────────────────────────────────
 
-pub fn render(dom DOM, canvas Canvas) []Drawable {
-	mut out := []Drawable{}
+pub fn render(dom DOM, canvas Canvas) map[string][]Drawable {
+	mut out := map[string][]Drawable{}
 	// initial containing block = entire canvas
 	render_node(dom.root, 0, 0, int(canvas.width), int(canvas.height), mut out, 0, 0,
 		0, int(canvas.width), int(canvas.height))
@@ -19,30 +19,33 @@ pub fn render(dom DOM, canvas Canvas) []Drawable {
 
 fn render_node(node &DomNode,
 	x int, y int, w int, h int,
-	mut out []Drawable, z u64,
+	mut out map[string][]Drawable, z u64,
 	cb_x int, cb_y int, cb_w int, cb_h int) {
+	out[node.id] = []
 	// 1) background
 	if node.style.text_style.bg != 0 {
-		out << Rect{'Rect', node.style.to_string(), x, y, w, h, node.style.text_style, z}
+		out[node.id] << Rect{'Rect', node.style.to_string(), x, y, w, h, node.style.text_style, z}
 	}
-	println('// 2) borders')
+	dump('// 2) borders')
 	if node.style.border.style != .none {
 		bc := (node.style.text_style)
 		// top
-		out << Horizontal{'Horizontal', node.style.to_string(), x, y, strings.repeat('─'[0],
+		out[node.id] << Horizontal{'Horizontal', node.style.to_string(), x, y, strings.repeat('─'[0],
 			w), bc, z + 1}
 		// bottom
-		out << Horizontal{'Horizontal', node.style.to_string(), x, y + h - 1, strings.repeat('─'[0],
+		out[node.id] << Horizontal{'Horizontal', node.style.to_string(), x, y + h - 1, strings.repeat('─'[0],
 			w), bc, z + 1}
 		// left & right
 		for dy in 0 .. h {
-			out << Vertical{'Vertical', node.style.to_string(), x, y + dy, '│', bc, z + 1}
-			out << Vertical{'Vertical', node.style.to_string(), x + w - 1, y + dy, '│', bc, z + 1}
+			out[node.id] << Vertical{'Vertical', node.style.to_string(), x, y + dy, '│', bc, z + 1}
+			out[node.id] << Vertical{'Vertical', node.style.to_string(), x + w - 1, y + dy, '│', bc,
+				z + 1}
 		}
 	}
-	println('// 3) text node')
+	dump('// 3) text node')
 	if node.tag == '#text' {
-		out << Text{'Text', node.style.to_string(), x, y, node.text, (node.style.text_style), z + 2}
+		out[node.id] << Text{'Text', node.style.to_string(), x, y, node.text, (node.style.text_style),
+			z + 2}
 		return
 	}
 
@@ -124,12 +127,14 @@ fn render_node(node &DomNode,
 // compute_width/compute_height unchanged…
 
 fn compute_width(node &DomNode, parent_w int) int {
+	dump('${node.style.width},${parent_w}')
 	d := node.style.width
 	return match d.typ {
 		.chars {
 			int(d.value)
 		}
 		.percent {
+			dump(parent_w * d.value)
 			int(parent_w * d.value / 100)
 		}
 		else {

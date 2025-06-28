@@ -13,7 +13,7 @@ fn test_display_none() {
 		height: 3
 	}
 	drawables := render(dom, canvas)
-	println(drawables)
+	dump(drawables)
 }
 
 // absolutely positioned children should be placed at (left,top)
@@ -28,7 +28,7 @@ fn test_position_absolute() {
 	}
 	drawables := render(dom, canvas)
 
-	println(drawables)
+	dump(drawables)
 }
 
 // percentage width/height should scale relative to parent/canvas
@@ -40,16 +40,18 @@ fn test_width_height_percentage() {
 		height: 10
 	}
 	drawables := render(dom, canvas)
-	println(drawables)
+	dump(drawables)
+	dump(dom.root)
 	// expect exactly one green Rect at (0,0) size 10×5
-	// assert drawables.len == 1
-	d := drawables[0]
-	println(d)
-	// assert d is Rect
-	r := d as Rect
-	println(r)
-	// assert r.x == 0 && r.y == 0
-	// assert r.width == 10 && r.height == 5
+	assert drawables.len == 2
+	d := drawables[dom.root.children[0].id]
+	dump(d)
+	assert d[0] is Rect
+	r := d[0] as Rect
+	dump(r)
+	dump(Drawable(r).get_bounding_rect())
+	assert r.x == 0 && r.y == 0
+	assert r.width == 10 && r.height == 5
 }
 
 // overflow-x:hidden should clip children that exceed the container width
@@ -63,7 +65,7 @@ fn test_overflow_hidden() {
 		height: 3
 	}
 	drawables := render(dom, canvas)
-	println(drawables)
+	dump(drawables)
 
 	// // text is entirely outside the clipped region → no Text drawables
 	// mut text_count := 0
@@ -85,7 +87,7 @@ fn test_top_left_relative() {
 	}
 	drawables := render(dom, canvas)
 
-	println(drawables)
+	dump(drawables)
 }
 
 // if both right and bottom are specified on an absolute box, they override left/top
@@ -99,5 +101,5 @@ fn test_absolute_right_bottom() {
 		height: 8
 	}
 	drawables := render(dom, canvas)
-	println(drawables)
+	dump(drawables)
 }
