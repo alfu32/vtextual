@@ -1,0 +1,619 @@
+module vdom
+
+import encoding.xml
+import strings
+import term
+import rand
+
+// callback type for event listeners
+pub type EventCallback = fn (node &DomNode)
+
+// ─── CSS MODEL ────────────────────────────────────────────────────────────────────
+
+pub enum DimensionType {
+	auto
+	none
+	chars
+	percent
+	fraction
+}
+
+pub struct CSSDimension {
+pub mut:
+	typ   DimensionType
+	value f64
+}
+
+pub fn (cssd CSSDimension) to_string() string {
+	return '${cssd.value}${cssd.typ.str()}'
+}
+
+pub fn (cssd CSSDimension) str() string {
+	return cssd.to_string()
+}
+
+// returns a CSSDimension with defaults (auto, 0)
+pub fn css_dimension_new() CSSDimension {
+	return CSSDimension{
+		typ:   .auto
+		value: 0
+	}
+}
+
+// parse “auto”, “none”, “50%”, “2fr”, or “10” (chars)
+pub fn css_dimension_parse(val string) CSSDimension {
+	lc := val.trim_space().to_lower()
+	if lc == 'auto' {
+		return CSSDimension{
+			typ:   .auto
+			value: 0
+		}
+	}
+	if lc == 'none' {
+		return CSSDimension{
+			typ:   .none
+			value: 0
+		}
+	}
+	if lc.ends_with('%') {
+		return CSSDimension{
+			typ:   .percent
+			value: lc.trim_right('%').f64()
+		}
+	}
+	if lc.ends_with('fr') {
+		return CSSDimension{
+			typ:   .fraction
+			value: lc.trim_right('fr').f64()
+		}
+	}
+	// otherwise assume chars
+	return CSSDimension{
+		typ:   .chars
+		value: lc.f64()
+	}
+}
+
+pub enum CSSDisplay {
+	inline
+	block
+	inline_block
+	none
+}
+
+pub enum CSSPosition {
+	none
+	relative
+	absolute
+	fixed
+}
+
+pub enum BoxSizing {
+	content_box
+	border_box
+}
+
+pub enum LayoutDirection {
+	ltr_ttb // left→right, top→bottom
+	rtl_ttb // right→left, top→bottom
+	ltr_btt // left→right, bottom→top
+	rtl_btt // right→left, bottom→top
+}
+
+pub enum BorderStyle {
+	none
+	dotted
+	dashed
+	solid
+}
+
+// overflow enum
+pub enum CSSOverflow {
+	visible
+	scroll
+	hidden
+}
+
+pub struct CSSBorder {
+pub mut:
+	style BorderStyle
+	color string
+}
+
+pub fn (cssb CSSBorder) to_string() string {
+	return '${cssb.style.str()} ${cssb.color}'
+}
+
+pub fn (cssb CSSBorder) str() string {
+	return '${cssb.style.str()} ${cssb.color}'
+}
+
+// returns a CSSBorder with defaults (none, "")
+pub fn css_border_new() CSSBorder {
+	return CSSBorder{
+		style: .none
+		color: ''
+	}
+}
+
+pub struct CSSStyle {
+pub mut:
+	display    CSSDisplay   = .inline
+	position   CSSPosition  = .none
+	top        CSSDimension = css_dimension_new()
+	left       CSSDimension = css_dimension_new()
+	right      CSSDimension = css_dimension_new()
+	bottom     CSSDimension = css_dimension_new()
+	width      CSSDimension = css_dimension_new()
+	min_width  CSSDimension = CSSDimension{
+		typ:   .chars
+		value: 0
+	}
+	max_width  CSSDimension = CSSDimension{
+		typ:   .none
+		value: 0
+	}
+	height     CSSDimension = css_dimension_new()
+	min_height CSSDimension = CSSDimension{
+		typ:   .chars
+		value: 0
+	}
+	max_height CSSDimension = CSSDimension{
+		typ:   .none
+		value: 0
+	}
+	margin     CSSDimension = CSSDimension{
+		typ:   .chars
+		value: 0
+	}
+	padding    CSSDimension = CSSDimension{
+		typ:   .chars
+		value: 0
+	}
+	border     CSSBorder       = css_border_new()
+	box_sizing BoxSizing       = .content_box
+	layout     LayoutDirection = .ltr_ttb
+	text_style CssColorConfig  = CssColorConfig{
+		styles: []
+		fg:     0xeeeeee
+		bg:     0x222222
+		custom: ''
+	}
+	overflow_x CSSOverflow = .visible
+	overflow_y CSSOverflow = .visible
+}
+
+pub fn (css CSSStyle) to_string() string {
+	stl := css_style_new()
+	mut txt := []string{}
+	if stl.display != css.display {
+		txt << 'display:${css.display.str()}'
+	}
+	if stl.position != css.position {
+		txt << 'position:${css.position.str()}'
+	}
+	if stl.top != css.top {
+		txt << 'top:${css.top.to_string()}'
+	}
+	if stl.left != css.left {
+		txt << 'left:${css.left.to_string()}'
+	}
+	if stl.right != css.right {
+		txt << 'right:${css.right.to_string()}'
+	}
+	if stl.bottom != css.bottom {
+		txt << 'bottom:${css.bottom.to_string()}'
+	}
+	if stl.width != css.width {
+		txt << 'width:${css.width.to_string()}'
+	}
+	if stl.min_width != css.min_width {
+		txt << 'min_width:${css.min_width.to_string()}'
+	}
+	if stl.max_width != css.max_width {
+		txt << 'max_width:${css.max_width.to_string()}'
+	}
+	if stl.height != css.height {
+		txt << 'height:${css.height.to_string()}'
+	}
+	if stl.min_height != css.min_height {
+		txt << 'min_height:${css.min_height.to_string()}'
+	}
+	if stl.max_height != css.max_height {
+		txt << 'max_height:${css.max_height.to_string()}'
+	}
+	if stl.margin != css.margin {
+		txt << 'margin:${css.margin.to_string()}'
+	}
+	if stl.padding != css.padding {
+		txt << 'padding:${css.padding.to_string()}'
+	}
+	if stl.border != css.border {
+		txt << 'border:${css.border.to_string()}'
+	}
+	if stl.box_sizing != css.box_sizing {
+		txt << 'box_sizing:${css.box_sizing.str()}'
+	}
+	if stl.layout != css.layout {
+		txt << 'layout:${css.layout.str()}'
+	}
+	if stl.text_style != css.text_style {
+		txt << 'text_style:${css.text_style.to_string()}'
+	}
+	if stl.overflow_x != css.overflow_x {
+		txt << 'overflow_x:${css.overflow_x.str()}'
+	}
+	if stl.overflow_y != css.overflow_y {
+		txt << 'overflow_y:${css.overflow_y.str()}'
+	}
+	return txt.join(',')
+}
+
+pub fn (css CSSStyle) str() string {
+	return '{${css.to_string()}}'
+}
+
+struct CssColorConfig {
+pub mut:
+	styles []term.TextStyle
+	fg     u32
+	bg     u32
+	custom string
+}
+
+pub fn (ccc CssColorConfig) to_string() string {
+	return 'decoration:${ccc.styles};fg:#${ccc.fg:06x};bg:#${ccc.bg:06x}'
+}
+
+pub fn (ccc CssColorConfig) str() string {
+	return '{styles:[${ccc.styles}],fg:0x${ccc.fg:06x},bg:0x${ccc.bg:06x}}'
+}
+
+pub fn css_color_parse(text string, default u32) u32 {
+	named_colors := {
+		'black':   u32(0x000000)
+		'red':     0xdd0000
+		'green':   0x00dd00
+		'yellow':  0xeeee00
+		'blue':    0x0000dd
+		'magenta': 0xdd00dd
+		'cyan':    0x00dddd
+		'white':   0xeeeeee
+	}
+
+	tt := text.trim(' ')
+
+	return if tt in named_colors {
+		named_colors[tt]
+	} else {
+		match tt[0].str() {
+			'#' {
+				u32(tt.substr(1, tt.len).parse_int(16, 32) or { default })
+			}
+			else {
+				default
+			}
+		}
+	}
+}
+
+// returns a CSSStyle initialized with all defaults
+pub fn css_style_new() CSSStyle {
+	return CSSStyle{}
+}
+
+// parse a full “key:val;…” declaration string into CSSStyle
+pub fn css_style_parse(style_str string) CSSStyle {
+	mut s := css_style_new()
+	for decl in style_str.split(';') {
+		trimmed := decl.trim_space()
+		if trimmed == '' {
+			continue
+		}
+		parts := trimmed.split(':')
+		if parts.len != 2 {
+			continue
+		}
+		key := parts[0].trim_space().to_lower()
+		val := parts[1].trim_space()
+		match key {
+			'display' {
+				match val.to_lower() {
+					'inline' { s.display = .inline }
+					'block' { s.display = .block }
+					'inline-block' { s.display = .inline_block }
+					'none' { s.display = .none }
+					else {}
+				}
+			}
+			'position' {
+				match val.to_lower() {
+					'relative' { s.position = .relative }
+					'absolute' { s.position = .absolute }
+					'fixed' { s.position = .fixed }
+					'none' { s.position = .none }
+					else {}
+				}
+			}
+			'top' {
+				s.top = css_dimension_parse(val)
+			}
+			'left' {
+				s.left = css_dimension_parse(val)
+			}
+			'right' {
+				s.right = css_dimension_parse(val)
+			}
+			'bottom' {
+				s.bottom = css_dimension_parse(val)
+			}
+			'width' {
+				s.width = css_dimension_parse(val)
+			}
+			'min-width' {
+				s.min_width = css_dimension_parse(val)
+			}
+			'max-width' {
+				s.max_width = css_dimension_parse(val)
+			}
+			'height' {
+				s.height = css_dimension_parse(val)
+			}
+			'min-height' {
+				s.min_height = css_dimension_parse(val)
+			}
+			'max-height' {
+				s.max_height = css_dimension_parse(val)
+			}
+			'margin' {
+				s.margin = css_dimension_parse(val)
+			}
+			'padding' {
+				s.padding = css_dimension_parse(val)
+			}
+			'border' {
+				parts2 := val.split(' ')
+				if parts2.len == 2 {
+					match parts2[0].to_lower() {
+						'dotted' { s.border.style = .dotted }
+						'dashed' { s.border.style = .dashed }
+						'solid' { s.border.style = .solid }
+						else {}
+					}
+					s.border.color = parts2[1]
+				}
+			}
+			'box-sizing' {
+				match val.to_lower() {
+					'border-box' { s.box_sizing = .border_box }
+					'content-box' { s.box_sizing = .content_box }
+					else {}
+				}
+			}
+			'layout' {
+				match val.to_lower() {
+					'ltrttb' { s.layout = .ltr_ttb }
+					'rtlttb' { s.layout = .rtl_ttb }
+					'ltrbtt' { s.layout = .ltr_btt }
+					'rtlbtt' { s.layout = .rtl_btt }
+					else {}
+				}
+			}
+			'background' {
+				s.text_style.bg = css_color_parse(val, 30)
+			}
+			'color' {
+				s.text_style.fg = css_color_parse(val, 40)
+			}
+			'text-decoration' {
+				s.text_style.styles = []
+				for tex in val.split(',') {
+					match tex.trim(' ').to_lower() {
+						'bold' { s.text_style.styles << .bold }
+						'dim' { s.text_style.styles << .dim }
+						'italic' { s.text_style.styles << .italic }
+						'underline' { s.text_style.styles << .underline }
+						'blink' { s.text_style.styles << .blink }
+						'reverse' { s.text_style.styles << .reverse }
+						else {}
+					}
+				}
+			}
+			'overflow-x' {
+				match val {
+					'scroll' { s.overflow_x = .scroll }
+					'hidden' { s.overflow_x = .hidden }
+					else { s.overflow_x = .visible }
+				}
+			}
+			'overflow-y' {
+				match val {
+					'scroll' { s.overflow_y = .scroll }
+					'hidden' { s.overflow_y = .hidden }
+					else { s.overflow_y = .visible }
+				}
+			}
+			else {}
+		}
+	}
+	return s
+}
+
+// ─── DOM MODEL ────────────────────────────────────────────────────────────────────
+
+pub struct DomNode {
+pub mut:
+	id              string = rand.uuid_v4()
+	tag             string
+	attributes      map[string]string
+	style           CSSStyle
+	event_listeners map[string][]EventCallback
+	children        []&DomNode
+	parent          voidptr
+	dirty           bool
+	text            string
+}
+
+// returns a DomNode with all defaults
+pub fn dom_node_new() DomNode {
+	return DomNode{
+		id:              rand.uuid_v4()
+		tag:             ''
+		attributes:      map[string]string{}
+		style:           css_style_new()
+		event_listeners: map[string][]EventCallback{}
+		children:        []&DomNode{}
+		parent:          unsafe { nil }
+		dirty:           false
+		text:            ''
+	}
+}
+
+pub struct DOM {
+pub mut:
+	width  int
+	height int
+	root   &DomNode
+}
+
+// returns a DOM with a nil root
+pub fn dom_new() DOM {
+	return DOM{
+		root: unsafe { nil }
+	}
+}
+
+// parse an XML fragment into a DomNode tree
+pub fn dom_node_parse(xml_frag string) &DomNode {
+	doc := xml.XMLDocument.from_string(xml_frag) or { panic('XML parsing failed: ${err}') }
+	return build_dom_node(doc.root, unsafe { nil })
+}
+
+// parse the XML fragment and wrap it in a DOM
+pub fn dom_parse(xml_frag string) DOM {
+	mut root := dom_node_new()
+	root.style.width = CSSDimension{
+		typ:   .chars
+		value: 120
+	}
+	root.style.height = CSSDimension{
+		typ:   .chars
+		value: 50
+	}
+	root.children = [
+		dom_node_parse(xml_frag),
+	]
+	return DOM{
+		width:  120
+		height: 50
+		root:   &root
+	}
+}
+
+fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
+	style_str := x.attributes['style'] or { '' }
+	mut node := &DomNode{
+		tag:             x.name
+		attributes:      x.attributes.clone()
+		style:           css_style_parse(style_str)
+		event_listeners: map[string][]EventCallback{}
+		children:        []&DomNode{}
+		parent:          parent
+		dirty:           true
+		text:            ''
+	}
+	// recurse into the mixed-content children
+	for child in x.children {
+		child_dom := match child {
+			xml.XMLNode {
+				build_dom_node(child, voidptr(node))
+			}
+			xml.XMLCData {
+				&DomNode{
+					tag:             '#cdata'
+					attributes:      map[string]string{}
+					style:           css_style_new()
+					event_listeners: map[string][]EventCallback{}
+					children:        []&DomNode{}
+					parent:          voidptr(node)
+					dirty:           true
+					text:            child.text
+				}
+			}
+			xml.XMLComment {
+				&DomNode{
+					tag:             '#comment'
+					attributes:      map[string]string{}
+					style:           css_style_new()
+					event_listeners: map[string][]EventCallback{}
+					children:        []&DomNode{}
+					parent:          voidptr(node)
+					dirty:           true
+					text:            child.text
+				}
+			}
+			else {
+				&DomNode{
+					tag:             '#text'
+					attributes:      map[string]string{}
+					style:           css_style_new()
+					event_listeners: map[string][]EventCallback{}
+					children:        []&DomNode{}
+					parent:          voidptr(node)
+					dirty:           true
+					text:            child.str()
+						.replace("xml.XMLNodeContents('", '')
+						.replace("')", '')
+				}
+			}
+		}
+		node.children << child_dom
+	}
+	return node
+}
+
+// ─── DomNode HTML/Text Serializers ───────────────────────────────────────────────
+
+pub fn (node &DomNode) inner_text() string {
+	mut sb := strings.new_builder(32)
+	for child in node.children {
+		// text nodes carry their content in .text; element nodes recurse
+		if child.tag == '#text' {
+			sb.write_string(child.text)
+		} else {
+			sb.write_string(child.inner_text())
+		}
+	}
+	return sb.str()
+}
+
+pub fn (node &DomNode) inner_html() string {
+	mut sb := strings.new_builder(64)
+	for child in node.children {
+		sb.write_string(child.outer_html())
+	}
+	return sb.str()
+}
+
+pub fn (node &DomNode) outer_html() string {
+	// text node
+	if node.tag == '#text' {
+		return node.text
+	}
+	// comment node
+	if node.tag == '#comment' {
+		return '<!--${node.text}-->'
+	}
+	// element node
+	// serialize attributes
+	mut attrs := strings.new_builder(32)
+	for key, val in node.attributes {
+		attrs.write_string(' ')
+		attrs.write_string(key)
+		attrs.write_string('="')
+		attrs.write_string(val)
+		attrs.write_string('"')
+	}
+	// opening tag + children + closing tag
+	return '<${node.tag}${attrs.str()}>' + node.inner_html() + '</${node.tag}>'
+}
