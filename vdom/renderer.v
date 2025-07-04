@@ -198,16 +198,17 @@ fn render_node2(node &DomNode, box Box, stylesheet CssStylesheet, mut out map[st
 	// dump('// 2) borders')
 	if ns.border.style != .none {
 		bc := (ns.text_style)
+		bdef := ns.border.definition.split('')
 		// top
-		out[node.id] << Horizontal{'Horizontal', ns.to_string(), box.x, box.y, '+' +
-			strings.repeat('─'[0], box.w - 2) + '+', bc, zi++}
+		out[node.id] << Horizontal{'Horizontal', ns.to_string(), box.x, box.y, bdef[0] +
+			strings.repeat(bdef[1][0], box.w - 2) + bdef[2], bc, zi++}
 		// bottom
-		out[node.id] << Horizontal{'Horizontal', ns.to_string(), box.x, box.y + box.h - 1, '+' +
-			strings.repeat('─'[0], box.w - 2) + '+', bc, zi++}
+		out[node.id] << Horizontal{'Horizontal', ns.to_string(), box.x, box.y + box.h - 1,
+			bdef[4] + strings.repeat(bdef[5][0], box.w - 2) + bdef[6], bc, zi++}
 		// left & right
-		out[node.id] << Vertical{'Vertical', ns.to_string(), box.x, box.y, strings.repeat('│'[0],
+		out[node.id] << Vertical{'Vertical', ns.to_string(), box.x, box.y, strings.repeat(bdef[3][0],
 			box.h - 2), bc, zi++}
-		out[node.id] << Vertical{'Vertical', ns.to_string(), box.x + box.w - 1, box.y, strings.repeat('│'[0],
+		out[node.id] << Vertical{'Vertical', ns.to_string(), box.x + box.w - 1, box.y, strings.repeat(bdef[7][0],
 			box.h - 2), bc, zi++}
 	}
 	// dump('// 3) text node')
