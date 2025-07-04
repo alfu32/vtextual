@@ -8,11 +8,12 @@ module vdom
 // display:none should hide the element completely
 fn test_display_none() {
 	dom := dom_parse('<div style="display:none;width:5;height:1;background:red">Hello</div>')
+	stylesheet := css_stylesheet_parse('')
 	canvas := Canvas{
 		width:  10
 		height: 3
 	}
-	drawables := render(dom, canvas)
+	drawables := render(dom, canvas, stylesheet)
 	dump(drawables)
 }
 

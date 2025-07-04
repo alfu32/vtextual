@@ -34,6 +34,19 @@ fn test_css_style_parse() {
 	dump('margin        = typ=${style.margin.typ}, value=${style.margin.value}')
 }
 
+fn test_rgb() {
+	input := 'display:block; width:50%; border:dashed #ffff00; layout:RTLBTT; background:#ffff00; color:#111111; padding:2; margin:1fr;'
+	dump('--- test_css_style_parse ---')
+	dump('Input: "${input}"')
+	style := css_style_parse(input)
+	dump(style.text_style.bg_red())
+	dump(style.text_style.bg_green())
+	dump(style.text_style.bg_blue())
+	dump(style.text_style.fg_red())
+	dump(style.text_style.fg_green())
+	dump(style.text_style.fg_blue())
+}
+
 fn test_build_dom_node() {
 	xml_src := '<div id="test" style="display:block;width:10;"><span>Hi</span><!--comment--><![CDATA[DATA]]>Some Other Text Node</div>'
 	dump('--- test_build_dom_node ---')

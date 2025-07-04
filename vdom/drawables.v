@@ -4,6 +4,61 @@ module vdom
 
 // pub type Color = string
 
+pub struct Box {
+pub mut:
+	typ string = 'box'
+	x   int
+	y   int
+	w   int
+	h   int
+	z   u64
+}
+
+pub fn (b Box) grow(n int) Box {
+	mut nw := b.w
+	mut nh := b.h
+	mut ny := b.y
+	mut nx := b.x
+	if nw + 2 * n > 0 {
+		nw = nw + 2 * n
+		nx = nx - n
+	}
+	if nh + 2 * n > 0 {
+		nh = nh + 2 * n
+		ny = ny - n
+	}
+	return Box{
+		typ: 'box'
+		x:   nx
+		y:   ny
+		w:   nw
+		h:   nh
+		z:   b.z + 1
+	}
+}
+
+pub fn (b Box) below() Box {
+	return Box{
+		typ: 'box'
+		x:   b.x
+		y:   b.y + b.h
+		w:   b.w
+		h:   b.h
+		z:   b.z + 1
+	}
+}
+
+pub fn (b Box) right() Box {
+	return Box{
+		typ: 'box'
+		x:   b.x + b.w
+		y:   b.y
+		w:   b.w
+		h:   b.h
+		z:   b.z + 1
+	}
+}
+
 pub struct Rect {
 	typ          string = 'rect'
 	css          string

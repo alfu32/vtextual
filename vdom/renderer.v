@@ -9,7 +9,7 @@ pub struct Canvas {
 
 // ─── RENDERER ───────────────────────────────────────────────────────────────────
 
-pub fn render(dom DOM, canvas Canvas) map[string][]Drawable {
+pub fn render(dom DOM, canvas Canvas, stylesheet []CssRule) map[string][]Drawable {
 	mut out := map[string][]Drawable{}
 	// initial containing block = entire canvas
 	render_node(dom.root, 0, 0, int(canvas.width), int(canvas.height), mut out, 0, 0,
@@ -22,11 +22,13 @@ fn render_node(node &DomNode,
 	mut out map[string][]Drawable, z u64,
 	cb_x int, cb_y int, cb_w int, cb_h int) {
 	out[node.id] = []
-	// 1) background
-	if node.style.text_style.bg != 0 {
+	// dump(node)
+	// dump([x, y, w, h, int(z), cb_x, cb_y, cb_w, cb_h])
+	// dump('// 1) background')
+	if node.style.text_style.bg.typ != .undefined {
 		out[node.id] << Rect{'Rect', node.style.to_string(), x, y, w, h, node.style.text_style, z}
 	}
-	dump('// 2) borders')
+	// dump('// 2) borders')
 	if node.style.border.style != .none {
 		bc := (node.style.text_style)
 		// top
@@ -42,7 +44,7 @@ fn render_node(node &DomNode,
 				z + 1}
 		}
 	}
-	dump('// 3) text node')
+	// dump('// 3) text node')
 	if node.tag == '#text' {
 		out[node.id] << Text{'Text', node.style.to_string(), x, y, node.text, (node.style.text_style),
 			z + 2}
@@ -170,6 +172,121 @@ fn compute_height(node &DomNode, parent_h int) int {
 				1
 			} else {
 				1
+			}
+		}
+	}
+}
+
+pub fn render2(dom DOM, stylesheet CssStylesheet, canvas Canvas) map[string][]Drawable {
+	mut out := map[string][]Drawable{}
+	// initial containing block = entire canvas
+	render_node2(dom.root, Box{'box', 0, 0, int(canvas.width), int(canvas.height), 1},
+		stylesheet, mut out)
+	return out
+}
+
+fn render_node2(node &DomNode, box Box, stylesheet CssStylesheet, mut out map[string][]Drawable) {
+	mut ns := stylesheet.apply_to_node(node).override(node.style)
+
+	mut zi := box.z + 1
+	out[node.id] = []
+	// dump(node)
+	// dump([x, y, w, h, int(z), cb_x, cb_y, cb_w, cb_h])
+	// dump('// 1) background')
+	out[node.id] << Rect{'Rect', ns.to_string(), box.x, box.y, box.w, box.h, ns.text_style, zi++}
+
+	// dump('// 2) borders')
+	if ns.border.style != .none {
+		bc := (ns.text_style)
+		// top
+		out[node.id] << Horizontal{'Horizontal', ns.to_string(), box.x, box.y, '+' +
+			strings.repeat('─'[0], box.w - 2) + '+', bc, zi++}
+		// bottom
+		out[node.id] << Horizontal{'Horizontal', ns.to_string(), box.x, box.y + box.h - 1, '+' +
+			strings.repeat('─'[0], box.w - 2) + '+', bc, zi++}
+		// left & right
+		out[node.id] << Vertical{'Vertical', ns.to_string(), box.x, box.y, strings.repeat('│'[0],
+			box.h - 2), bc, zi++}
+		out[node.id] << Vertical{'Vertical', ns.to_string(), box.x + box.w - 1, box.y, strings.repeat('│'[0],
+			box.h - 2), bc, zi++}
+	}
+	// dump('// 3) text node')
+	if node.tag == '#text' {
+		out[node.id] << Text{'Text', ns.to_string(), box.x + 1, box.y + 1, node.text, (ns.text_style), zi++}
+		return
+	}
+
+	// 4) lay out children
+	mut flow_x := box.x
+	mut flow_y := box.y
+	for child in node.children {
+		// size
+		cw := compute_width(child, box.w)
+		ch := compute_height(child, box.h)
+
+		// positioning
+		mut cx := flow_x
+		mut cy := flow_y
+
+		if child.style.position == .absolute {
+			// use containing block
+			origin_x, origin_y, origin_w, origin_h := box.x, box.y, box.w, box.h
+			// horizontal
+			if child.style.left.typ != .auto {
+				cx = origin_x + int(child.style.left.value)
+			} else if child.style.right.typ != .auto {
+				cx = origin_x + origin_w - cw - int(child.style.right.value)
+			} else {
+				cx = origin_x
+			}
+			// vertical
+			if child.style.top.typ != .auto {
+				cy = origin_y + int(child.style.top.value)
+			} else if child.style.bottom.typ != .auto {
+				cy = origin_y + origin_h - ch - int(child.style.bottom.value)
+			} else {
+				cy = origin_y
+			}
+		} else {
+			// static or relative in flow
+			if child.style.position == .relative {
+				if child.style.left.typ != .auto {
+					cx += int(child.style.left.value)
+				}
+				if child.style.top.typ != .auto {
+					cy += int(child.style.top.value)
+				}
+			}
+		}
+
+		// overflow clipping
+		if ns.overflow_x == .hidden {
+			if cx < box.x || cx + cw > box.x + box.w {
+				continue
+			}
+		}
+		if ns.overflow_y == .hidden {
+			if cy < box.y || cy + ch > box.y + box.h {
+				continue
+			}
+		}
+
+		// determine new containing block
+		mut ncb_x, mut ncb_y, mut ncb_w, mut ncb_h := box.x, box.y, box.w, box.h
+		if child.style.position == .relative {
+			ncb_x, ncb_y, ncb_w, ncb_h = cx, cy, cw, ch
+		}
+		_ := ncb_h
+
+		// recurse
+		render_node2(child, Box{'box', cx, cy, cw, ch, zi++}, stylesheet, mut out)
+
+		// advance flow for non-absolute
+		if child.style.position != .absolute {
+			flow_x += cw
+			if flow_x >= box.x + box.w {
+				flow_x = box.x
+				flow_y += ch
 			}
 		}
 	}
