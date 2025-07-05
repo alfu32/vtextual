@@ -54,11 +54,9 @@ fn test_stylesheet_parsing_full_defs() {
 			height:234%;
 			min-height:234%;
 			max-height:234%;
-			margin:2;
 			padding:3;
 			border:[*]I[*]I #4445ff  #4445ff;
 			box-sizing:border-box;
-			layout:box;
 			/*20th line*/
 		}
 		#element-id{
@@ -76,11 +74,9 @@ fn test_stylesheet_parsing_full_defs() {
 			height:234%;
 			min-height:234%;
 			max-height:234%;
-			margin:2;
 			padding:3;
 			border:thick #4445ff  #4445ff;
 			box-sizing:border-box;
-			layout:box;
 			/*20th line*/
 		}
 		tag-name{
@@ -98,11 +94,9 @@ fn test_stylesheet_parsing_full_defs() {
 			height:234%;
 			min-height:234%;
 			max-height:234%;
-			margin:2;
 			padding:3;
 			border:solid #4445ff  #4445ff;
 			box-sizing:border-box;
-			layout:box;
 			overflow-x:auto;
 			overflow-y:scroll;
 			/*20th line*/

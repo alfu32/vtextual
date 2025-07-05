@@ -22,35 +22,53 @@ pub fn vt_renderer_init(html string, css string, width u32, height u32) VTRender
 	}
 }
 
-pub fn (vt VTRenderer) render() {
-	// term.clear()
+pub fn (vt VTRenderer) render_debug() {
+	print(vt)
 	for node_id, drawables in render2(vt.document, vt.stylesheet, vt.canvas) {
-		// println(node_id)
-		// node := vt.document.find_node(node_id)
-		_ := node_id
+		println(node_id)
 		for drawable in drawables {
 			match drawable {
 				Rect {
-					// draw_rect(drawable,node)
 					println(drawable)
 				}
 				Horizontal {
-					// draw_horizontal(drawable,node)
 					println(drawable)
 				}
 				Vertical {
-					// draw_vertical(drawable,node)
 					println(drawable)
 				}
 				Text {
-					// draw_text(drawable,node)
 					println(drawable)
 				}
 			}
 		}
 	}
-	// term.set_cursor_position(x: 0,y: int(vt.canvas.height+1))
-	// println(term.reset("\n"))
+}
+
+pub fn (vt VTRenderer) render() {
+	term.clear()
+	for node_id, drawables in render2(vt.document, vt.stylesheet, vt.canvas) {
+		node := vt.document.find_node(node_id)
+		_ := node_id
+		for drawable in drawables {
+			match drawable {
+				Rect {
+					draw_rect(drawable, node)
+				}
+				Horizontal {
+					draw_horizontal(drawable, node)
+				}
+				Vertical {
+					draw_vertical(drawable, node)
+				}
+				Text {
+					draw_text(drawable, node)
+				}
+			}
+		}
+	}
+	term.set_cursor_position(x: 0, y: int(vt.canvas.height + 1))
+	println(term.reset('\n'))
 }
 
 fn draw_rect(r Rect, node ?&DomNode) {

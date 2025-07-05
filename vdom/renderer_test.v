@@ -27,7 +27,8 @@ fn test_position_absolute() {
 		width:  10
 		height: 5
 	}
-	drawables := render(dom, canvas)
+	stylesheet := css_stylesheet_parse('')
+	drawables := render(dom, canvas, stylesheet)
 
 	dump(drawables)
 }
@@ -40,7 +41,8 @@ fn test_width_height_percentage() {
 		width:  20
 		height: 10
 	}
-	drawables := render(dom, canvas)
+	stylesheet := css_stylesheet_parse('')
+	drawables := render(dom, canvas, stylesheet)
 	dump(drawables)
 	dump(dom.root)
 	// expect exactly one green Rect at (0,0) size 10×5
@@ -65,7 +67,8 @@ fn test_overflow_hidden() {
 		width:  10
 		height: 3
 	}
-	drawables := render(dom, canvas)
+	stylesheet := css_stylesheet_parse('')
+	drawables := render(dom, canvas, stylesheet)
 	dump(drawables)
 
 	// // text is entirely outside the clipped region → no Text drawables
@@ -86,7 +89,8 @@ fn test_top_left_relative() {
 		width:  10
 		height: 5
 	}
-	drawables := render(dom, canvas)
+	stylesheet := css_stylesheet_parse('')
+	drawables := render(dom, canvas, stylesheet)
 
 	dump(drawables)
 }
@@ -101,6 +105,7 @@ fn test_absolute_right_bottom() {
 		width:  12
 		height: 8
 	}
-	drawables := render(dom, canvas)
+	stylesheet := css_stylesheet_parse('')
+	drawables := render(dom, canvas, stylesheet)
 	dump(drawables)
 }

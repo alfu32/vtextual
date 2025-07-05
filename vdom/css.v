@@ -19,6 +19,14 @@ pub mut:
 	value i64
 }
 
+pub fn (this CSSDimension) accumulate(other CSSDimension) CSSDimension {
+	return if other.typ != .undefined { other } else { this }
+}
+
+pub fn (this CSSDimension) override(other CSSDimension) CSSDimension {
+	return if other.typ != .undefined { other } else { this }
+}
+
 pub fn (cssd CSSDimension) is_undefined() bool {
 	return cssd.typ == .undefined
 }
@@ -81,19 +89,30 @@ pub fn css_dimension_parse(val string) CSSDimension {
 }
 
 pub enum CSSDisplay {
-	inline
 	block
-	inline_block
 	none
 	undefined
 }
 
+pub fn (cssd CSSDisplay) accumulate(other CSSDisplay) CSSDisplay {
+	return if other != .undefined { other } else { cssd }
+}
+
+pub fn (cssd CSSDisplay) override(other CSSDisplay) CSSDisplay {
+	return if other != .undefined { other } else { cssd }
+}
+
 pub enum CSSPosition {
-	none
 	relative
-	absolute
-	fixed
 	undefined
+}
+
+pub fn (cssp CSSPosition) accumulate(other CSSPosition) CSSPosition {
+	return if other != .undefined { other } else { cssp }
+}
+
+pub fn (cssp CSSPosition) override(other CSSPosition) CSSPosition {
+	return if other != .undefined { other } else { cssp }
 }
 
 pub enum BoxSizing {
@@ -102,11 +121,12 @@ pub enum BoxSizing {
 	undefined
 }
 
-pub enum LayoutDirection {
-	ltr_ttb // left→right, top→bottom
-	rtl_ttb // right→left, top→bottom
-	ltr_btt // left→right, bottom→top
-	rtl_btt // right→left, bottom→top
+pub fn (cssp BoxSizing) accumulate(other BoxSizing) BoxSizing {
+	return if other != .undefined { other } else { cssp }
+}
+
+pub fn (cssp BoxSizing) override(other BoxSizing) BoxSizing {
+	return if other != .undefined { other } else { cssp }
 }
 
 pub enum BorderStyle {
@@ -126,6 +146,14 @@ pub enum BorderStyle {
 	undefined
 }
 
+pub fn (bs BorderStyle) accumulate(other BorderStyle) BorderStyle {
+	return if other != .undefined { other } else { bs }
+}
+
+pub fn (bs BorderStyle) override(other BorderStyle) BorderStyle {
+	return if other != .undefined { other } else { bs }
+}
+
 // overflow enum
 pub enum CSSOverflow {
 	visible
@@ -134,12 +162,50 @@ pub enum CSSOverflow {
 	undefined
 }
 
+pub fn (bs CSSOverflow) accumulate(other CSSOverflow) CSSOverflow {
+	return other
+}
+
+pub fn (bs CSSOverflow) override(other CSSOverflow) CSSOverflow {
+	return other
+}
+
 pub struct CSSBorder {
 pub mut:
 	style      BorderStyle
 	definition string // = "+=+|+-+|"
 	color      CssColor
 	background CssColor
+}
+
+pub fn (cssb CSSBorder) accumulate(other CSSBorder) CSSBorder {
+	mut new_border := css_border_new()
+	new_border.style = cssb.style.accumulate(other.style)
+	new_border.definition = if other.style != .undefined {
+		other.definition
+	} else {
+		cssb.definition
+	}
+	new_border.color = cssb.color.accumulate(other.color)
+	new_border.background = cssb.background.accumulate(other.background)
+	return new_border
+}
+
+pub fn (cssb CSSBorder) override(other CSSBorder) CSSBorder {
+	mut new_border := css_border_new()
+	new_border.style = cssb.style.override(other.style)
+	new_border.definition = if other.style != .undefined {
+		other.definition
+	} else {
+		cssb.definition
+	}
+	new_border.color = cssb.color.override(other.color)
+	new_border.background = cssb.background.override(other.background)
+	return new_border
+}
+
+pub fn (cssb CSSBorder) to_string() string {
+	return '${cssb.style}(${cssb.definition}) ${cssb.color.to_string()} ${cssb.background.to_string()}'
 }
 
 pub fn css_border_definition(definition string) string {
@@ -219,10 +285,6 @@ pub fn css_border_definition(definition string) string {
 	}
 }
 
-pub fn (cssb CSSBorder) to_string() string {
-	return '${cssb.style.str()} #${cssb.color.to_u32():06X} #${cssb.background.to_u32():06X}'
-}
-
 pub fn (cssb CSSBorder) str() string {
 	return '${if cssb.style == .literal {
 		cssb.definition
@@ -231,7 +293,7 @@ pub fn (cssb CSSBorder) str() string {
 	}} #${cssb.color.to_u32():06X} #${cssb.background.to_u32():06X}'
 }
 
-// returns a CSSBorder with defaults (none, "")
+// css_border_new returns a CSSBorder with defaults (none, "")
 pub fn css_border_new() CSSBorder {
 	return CSSBorder{
 		style:      .undefined
@@ -243,28 +305,20 @@ pub fn css_border_new() CSSBorder {
 
 pub struct CSSStyle {
 pub mut:
-	display    CSSDisplay      = .undefined
-	position   CSSPosition     = .undefined
-	top        CSSDimension    = css_dimension_new()
-	left       CSSDimension    = css_dimension_new()
-	right      CSSDimension    = css_dimension_new()
-	bottom     CSSDimension    = css_dimension_new()
-	width      CSSDimension    = css_dimension_new()
-	min_width  CSSDimension    = css_dimension_new()
-	max_width  CSSDimension    = css_dimension_new()
-	height     CSSDimension    = css_dimension_new()
-	min_height CSSDimension    = css_dimension_new()
-	max_height CSSDimension    = css_dimension_new()
-	margin     CSSDimension    = css_dimension_new()
-	padding    CSSDimension    = css_dimension_new()
-	border     CSSBorder       = css_border_new()
-	box_sizing BoxSizing       = .border_box
-	layout     LayoutDirection = .ltr_ttb
-	text_style CssColorConfig  = CssColorConfig{
+	display    CSSDisplay     = .undefined
+	position   CSSPosition    = .undefined
+	top        CSSDimension   = css_dimension_new()
+	left       CSSDimension   = css_dimension_new()
+	width      CSSDimension   = css_dimension_new()
+	height     CSSDimension   = css_dimension_new()
+	padding    CSSDimension   = css_dimension_new()
+	border     CSSBorder      = css_border_new()
+	box_sizing BoxSizing      = .undefined
+	text_style CssColorConfig = CssColorConfig{
 		styles: []
 		fg:     css_color_new()
 		bg:     css_color_new()
-		custom: ''
+		typ:    .undefined
 	}
 	overflow_x CSSOverflow = .undefined
 	overflow_y CSSOverflow = .undefined
@@ -276,142 +330,59 @@ pub fn (this CSSStyle) copy() CSSStyle {
 		position:   this.position
 		top:        this.top
 		left:       this.left
-		right:      this.right
-		bottom:     this.bottom
 		width:      this.width
-		min_width:  this.min_width
-		max_width:  this.max_width
 		height:     this.height
-		min_height: this.min_height
-		max_height: this.max_height
-		margin:     this.margin
 		padding:    this.padding
 		border:     this.border
 		box_sizing: this.box_sizing
-		layout:     this.layout
 		text_style: this.text_style.copy()
 		overflow_x: this.overflow_x
 		overflow_y: this.overflow_y
 	}
 }
 
+pub fn (style CSSStyle) get_css_box() Box {
+	return Box{
+		typ: 'CssBox'
+		x:   style.left.value
+		y:   style.top.value
+		w:   style.width.value
+		h:   style.height.value
+		z:   0
+	}
+}
+
 pub fn (this CSSStyle) accumulate(other CSSStyle) CSSStyle {
-	mut default := css_style_new()
 	mut new_style := this.copy()
-	new_style.display = if other.display != default.display {
-		other.display
-	} else {
-		new_style.display
-	}
-	new_style.position = if other.position != default.position {
-		other.position
-	} else {
-		new_style.position
-	}
-	new_style.top = if other.top != default.top { other.top } else { new_style.top }
-	new_style.left = if other.left != default.left { other.left } else { new_style.left }
-	new_style.right = if other.right != default.right { other.right } else { new_style.right }
-	new_style.bottom = if other.bottom != default.bottom { other.bottom } else { new_style.bottom }
-	new_style.width = if other.width != default.width { other.width } else { new_style.width }
-	new_style.min_width = if other.min_width != default.min_width {
-		other.min_width
-	} else {
-		new_style.min_width
-	}
-	new_style.max_width = if other.max_width != default.max_width {
-		other.max_width
-	} else {
-		new_style.max_width
-	}
-	new_style.height = if other.height != default.height { other.height } else { new_style.height }
-	new_style.min_height = if other.min_height != default.min_height {
-		other.min_height
-	} else {
-		new_style.min_height
-	}
-	new_style.max_height = if other.max_height != default.max_height {
-		other.max_height
-	} else {
-		new_style.max_height
-	}
-	new_style.margin = if other.margin != default.margin { other.margin } else { new_style.margin }
-	new_style.padding = if other.padding != default.padding {
-		other.padding
-	} else {
-		new_style.padding
-	}
-	new_style.border = if other.border != default.border { other.border } else { new_style.border }
-	new_style.box_sizing = if other.box_sizing != default.box_sizing {
-		other.box_sizing
-	} else {
-		new_style.box_sizing
-	}
-	new_style.layout = if other.layout != default.layout { other.layout } else { new_style.layout }
-	new_style.text_style = if other.text_style != default.text_style {
-		other.text_style
-	} else {
-		new_style.text_style
-	}
-	new_style.overflow_x = if other.overflow_x != default.overflow_x {
-		other.overflow_x
-	} else {
-		new_style.overflow_x
-	}
-	new_style.overflow_y = if other.overflow_y != default.overflow_y {
-		other.overflow_y
-	} else {
-		new_style.overflow_y
-	}
+	new_style.display = this.display.accumulate(other.display)
+	new_style.position = this.position.accumulate(other.position)
+	new_style.top = this.top.accumulate(other.top)
+	new_style.left = this.left.accumulate(other.left)
+	new_style.width = this.width.accumulate(other.width)
+	new_style.height = this.height.accumulate(other.height)
+	new_style.padding = this.padding.accumulate(other.padding)
+	new_style.border = this.border.accumulate(other.border)
+	new_style.box_sizing = this.box_sizing.accumulate(other.box_sizing)
+	new_style.text_style = this.text_style.accumulate(other.text_style)
+	new_style.overflow_x = this.overflow_x.accumulate(other.overflow_x)
+	new_style.overflow_y = this.overflow_y.accumulate(other.overflow_y)
 	return new_style
 }
 
 pub fn (this CSSStyle) override(other CSSStyle) CSSStyle {
-	mut default := css_style_new()
 	mut new_style := css_style_new()
-	new_style.display = other.display
-	new_style.position = other.position
-	new_style.top = other.top
-	new_style.left = other.left
-	new_style.right = other.right
-	new_style.bottom = other.bottom
-	new_style.width = other.width
-	new_style.min_width = other.min_width
-	new_style.max_width = other.max_width
-	new_style.height = other.height
-	new_style.min_height = other.min_height
-	new_style.max_height = other.max_height
-	new_style.layout = other.layout
-
-	new_style.box_sizing = if other.box_sizing != .undefined {
-		other.box_sizing
-	} else if this.box_sizing != .undefined {
-		this.box_sizing
-	} else {
-		new_style.box_sizing
-	}
-	new_style.overflow_x = if other.overflow_x != .undefined {
-		other.overflow_x
-	} else if this.overflow_x != .undefined {
-		this.overflow_x
-	} else {
-		new_style.overflow_x
-	}
-	new_style.overflow_y = if other.overflow_y != .undefined {
-		other.overflow_y
-	} else if this.overflow_y != .undefined {
-		this.overflow_y
-	} else {
-		new_style.overflow_x
-	}
-
-	new_style.border = if other.border.style != .undefined { other.border } else { this.border }
-	new_style.margin = if other.margin.typ != .undefined { other.margin } else { this.margin }
-	new_style.padding = if other.padding.typ != .undefined { other.padding } else { this.padding }
-	new_style.text_style = if other.text_style != default.text_style {
-		other.text_style
-	} else {
-		this.text_style
-	}
+	new_style.display = this.display.override(other.display)
+	new_style.position = this.position.override(other.position)
+	new_style.top = this.top.override(other.top)
+	new_style.left = this.left.override(other.left)
+	new_style.width = this.width.override(other.width)
+	new_style.height = this.height.override(other.height)
+	new_style.padding = this.padding.override(other.padding)
+	new_style.border = this.border.override(other.border)
+	new_style.box_sizing = this.box_sizing.override(other.box_sizing)
+	new_style.text_style = this.text_style.override(other.text_style)
+	new_style.overflow_x = this.overflow_x.override(other.overflow_x)
+	new_style.overflow_y = this.overflow_y.override(other.overflow_y)
 	return new_style
 }
 
@@ -430,32 +401,11 @@ pub fn (this CSSStyle) to_string() string {
 	if stl.left != this.left {
 		txt << 'left:${this.left.to_string()}'
 	}
-	if stl.right != this.right {
-		txt << 'right:${this.right.to_string()}'
-	}
-	if stl.bottom != this.bottom {
-		txt << 'bottom:${this.bottom.to_string()}'
-	}
 	if stl.width != this.width {
 		txt << 'width:${this.width.to_string()}'
 	}
-	if stl.min_width != this.min_width {
-		txt << 'min_width:${this.min_width.to_string()}'
-	}
-	if stl.max_width != this.max_width {
-		txt << 'max_width:${this.max_width.to_string()}'
-	}
 	if stl.height != this.height {
 		txt << 'height:${this.height.to_string()}'
-	}
-	if stl.min_height != this.min_height {
-		txt << 'min_height:${this.min_height.to_string()}'
-	}
-	if stl.max_height != this.max_height {
-		txt << 'max_height:${this.max_height.to_string()}'
-	}
-	if stl.margin != this.margin {
-		txt << 'margin:${this.margin.to_string()}'
 	}
 	if stl.padding != this.padding {
 		txt << 'padding:${this.padding.to_string()}'
@@ -465,9 +415,6 @@ pub fn (this CSSStyle) to_string() string {
 	}
 	if stl.box_sizing != this.box_sizing {
 		txt << 'box_sizing:${this.box_sizing.str()}'
-	}
-	if stl.layout != this.layout {
-		txt << 'layout:${this.layout.str()}'
 	}
 	if stl.text_style != this.text_style {
 		txt << 'text_style:${this.text_style.to_string()}'
@@ -507,16 +454,39 @@ fn css_color_parse_u32(value u32) CssColor {
 	}
 }
 
+fn (c CssColor) accumulate(other CssColor) CssColor {
+	mut new_color := css_color_new()
+	new_color.typ = if other.typ != .undefined { other.typ } else { c.typ }
+	new_color.value = if other.typ != .undefined { other.value } else { c.value }
+	return new_color
+}
+
+fn (c CssColor) override(other CssColor) CssColor {
+	mut new_color := css_color_new()
+	new_color.typ = if other.typ != .undefined { other.typ } else { c.typ }
+	new_color.value = if other.typ != .undefined { other.value } else { c.value }
+	return new_color
+}
+
 fn (c CssColor) to_u32() u32 {
 	return c.value
 }
 
+fn (c CssColor) to_string() string {
+	return '#${c.value:06X}'
+}
+
+enum CssColorConfigType {
+	default
+	undefined
+}
+
 struct CssColorConfig {
 pub mut:
-	styles []term.TextStyle = []
-	fg     CssColor         = css_color_new()
-	bg     CssColor         = css_color_new()
-	custom string
+	styles []term.TextStyle   = []
+	fg     CssColor           = css_color_new()
+	bg     CssColor           = css_color_new()
+	typ    CssColorConfigType = .undefined
 }
 
 pub fn (cc CssColorConfig) copy() CssColorConfig {
@@ -524,8 +494,26 @@ pub fn (cc CssColorConfig) copy() CssColorConfig {
 		styles: cc.styles
 		fg:     cc.fg
 		bg:     cc.bg
-		custom: cc.custom
+		typ:    cc.typ
 	}
+}
+
+pub fn (this CssColorConfig) accumulate(other CssColorConfig) CssColorConfig {
+	mut new_ccc := CssColorConfig{}
+	new_ccc.typ = if other.typ != .undefined { other.typ } else { this.typ }
+	new_ccc.fg = if other.typ != .undefined { this.fg.accumulate(other.fg) } else { this.fg }
+	new_ccc.bg = if other.typ != .undefined { this.fg.accumulate(other.bg) } else { this.bg }
+	new_ccc.styles = if other.styles.len != 0 { other.styles } else { this.styles }
+	return new_ccc
+}
+
+pub fn (this CssColorConfig) override(other CssColorConfig) CssColorConfig {
+	mut new_ccc := CssColorConfig{}
+	new_ccc.typ = if other.typ != .undefined { other.typ } else { this.typ }
+	new_ccc.fg = if other.typ != .undefined { this.fg.accumulate(other.fg) } else { this.fg }
+	new_ccc.bg = if other.typ != .undefined { this.fg.accumulate(other.bg) } else { this.bg }
+	new_ccc.styles = if other.styles.len != 0 { other.styles } else { this.styles }
+	return new_ccc
 }
 
 pub fn (cc CssColorConfig) bg_red() u8 {
@@ -608,9 +596,7 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 	match key {
 		'display' {
 			match val.to_lower() {
-				'inline' { this.display = .inline }
 				'block' { this.display = .block }
-				'inline-block' { this.display = .inline_block }
 				'none' { this.display = .none }
 				else {}
 			}
@@ -618,9 +604,6 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 		'position' {
 			match val.to_lower() {
 				'relative' { this.position = .relative }
-				'absolute' { this.position = .absolute }
-				'fixed' { this.position = .fixed }
-				'none' { this.position = .none }
 				else { this.position = .undefined }
 			}
 		}
@@ -630,32 +613,11 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 		'left' {
 			this.left = css_dimension_parse(val)
 		}
-		'right' {
-			this.right = css_dimension_parse(val)
-		}
-		'bottom' {
-			this.bottom = css_dimension_parse(val)
-		}
 		'width' {
 			this.width = css_dimension_parse(val)
 		}
-		'min-width' {
-			this.min_width = css_dimension_parse(val)
-		}
-		'max-width' {
-			this.max_width = css_dimension_parse(val)
-		}
 		'height' {
 			this.height = css_dimension_parse(val)
-		}
-		'min-height' {
-			this.min_height = css_dimension_parse(val)
-		}
-		'max-height' {
-			this.max_height = css_dimension_parse(val)
-		}
-		'margin' {
-			this.margin = css_dimension_parse(val)
 		}
 		'padding' {
 			this.padding = css_dimension_parse(val)
@@ -721,21 +683,14 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 			if parts2.len >= 3 {
 				this.border.color = css_color_parse(parts2[1]) or { css_color_new() }
 			}
+			// dump(this.border)
+			// dump(this.border.definition)
 		}
 		'box-sizing' {
 			match val.to_lower() {
 				'border-box' { this.box_sizing = .border_box }
 				'content-box' { this.box_sizing = .content_box }
 				else { this.box_sizing = .undefined }
-			}
-		}
-		'layout' {
-			match val.to_lower() {
-				'ltrttb' { this.layout = .ltr_ttb }
-				'rtlttb' { this.layout = .rtl_ttb }
-				'ltrbtt' { this.layout = .ltr_btt }
-				'rtlbtt' { this.layout = .rtl_btt }
-				else { this.layout = .ltr_ttb }
 			}
 		}
 		'background' {

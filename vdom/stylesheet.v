@@ -95,17 +95,24 @@ pub fn (s CssStylesheet) apply_to_node(node &DomNode) CSSStyle {
 	id := node.attributes['id'] or { undef }
 	class_name := node.attributes['class'] or { undef }
 	tag_name := node.tag
-	css := css_style_new()
-	for selector, style in s.styles {
-		if id != undef && '#${id}' == selector {
-			css.accumulate(style)
-		}
-		if class_name != undef && '.${class_name}' == selector {
-			css.accumulate(style)
-		}
-		if tag_name == selector {
-			css.accumulate(style)
-		}
+	mut css := css_style_new()
+	// dump(tag_name)
+	class_selector := '.${class_name}'
+	// dump(class_selector)
+	id_selector := '#${id}'
+	// dump(id_selector)
+	if s.styles.keys().contains(tag_name) {
+		// dump(tag_name)
+		css = css.accumulate(s.styles[tag_name])
 	}
+	if s.styles.keys().contains(class_selector) {
+		// dump(class_selector)
+		css = css.accumulate(s.styles[class_selector])
+	}
+	if s.styles.keys().contains(id_selector) {
+		// dump(id_selector)
+		css = css.accumulate(s.styles[id_selector])
+	}
+	// dump(css)
 	return css
 }
