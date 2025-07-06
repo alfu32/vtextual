@@ -24,7 +24,7 @@ pub fn vt_renderer_init(html string, css string, width u32, height u32) VTRender
 
 pub fn (vt VTRenderer) render_debug() {
 	print(vt)
-	for node_id, drawables in render2(vt.document, vt.stylesheet, vt.canvas) {
+	for node_id, drawables in render(vt.document, vt.canvas, vt.stylesheet) {
 		println(node_id)
 		for drawable in drawables {
 			match drawable {
@@ -47,7 +47,8 @@ pub fn (vt VTRenderer) render_debug() {
 
 pub fn (vt VTRenderer) render() {
 	term.clear()
-	for node_id, drawables in render2(vt.document, vt.stylesheet, vt.canvas) {
+	term.set_cursor_position(x: 0, y: 0)
+	for node_id, drawables in render(vt.document, vt.canvas, vt.stylesheet) {
 		node := vt.document.find_node(node_id)
 		_ := node_id
 		for drawable in drawables {
@@ -73,36 +74,36 @@ pub fn (vt VTRenderer) render() {
 
 fn draw_rect(r Rect, node ?&DomNode) {
 	// // println(r)
-	chr := ' '[0] //(rand.u8()%95)+33
 
-	for y in 1 .. r.height - 1 {
-		term.set_cursor_position(x: r.x, y: r.y + y)
-		fg := term.rgb(r.color_config.fg_red(), r.color_config.fg_green(), r.color_config.fg_blue(), // "${r.x:03}x${y:02}"+
-		 chr.ascii_str().repeat(r.width - 2))
-		print(term.bg_rgb(r.color_config.bg_red(), r.color_config.bg_green(), r.color_config.bg_blue(),
-			fg))
+	for y in 1 .. int(r.height) - 1 {
+		term.set_cursor_position(x: int(r.x), y: int(r.y) + y)
+		tx := ` `.repeat(int(r.width - 2)) // "${r.x:03}x${y:02}"+
+		print(r.color_config.apply(tx))
 	}
-	term.set_cursor_position(x: r.x + r.width - 11, y: r.y + r.height - 1)
-	if node != none {
-		print(' ${node.tag} ')
-	} else {
-		print(' undefined ')
-	}
+	term.set_cursor_position(x: int(r.x + r.width) - 11, y: int(r.y + r.height) - 1)
+	// if node != none {
+	// 	print(' ${node.tag} ')
+	// } else {
+	// 	print(' undefined ')
+	// }
 }
 
 fn draw_horizontal(h Horizontal, node ?&DomNode) {
-	term.set_cursor_position(x: h.x, y: h.y)
-	print(h.value)
+	term.set_cursor_position(x: int(h.x), y: int(h.y))
+	print(h.color_config.apply(h.value))
 }
 
 fn draw_vertical(v Vertical, node ?&DomNode) {
-	for y in 0 .. v.value.len {
-		term.set_cursor_position(x: v.x, y: v.y + y)
-		print(v.value[y].ascii_str())
+	runes := v.value.runes()
+	mut y := 0
+	for r in runes {
+		term.set_cursor_position(x: int(v.x), y: int(v.y) + y)
+		print(v.color_config.apply(r.str()))
+		y += 1
 	}
 }
 
 fn draw_text(t Text, node ?&DomNode) {
-	term.set_cursor_position(x: t.x, y: t.y)
-	print(t.value)
+	term.set_cursor_position(x: int(t.x), y: int(t.y))
+	print(t.color_config.apply(t.value))
 }

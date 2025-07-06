@@ -4,7 +4,7 @@ import term
 
 fn test_css_parser() {
 	dump(DimensionType.auto)
-	mut style := css_style_parse('display:block; width:50%; border:solid #f00;background:22;')
+	mut style := css_style_parse('display:block; width:50%; border:solid #f00;text-background:22;')
 	dump(style)
 }
 
@@ -19,7 +19,7 @@ fn test_css_dimension_parse() {
 }
 
 fn test_css_style_parse() {
-	input := 'display:block; width:50%; border:dashed #ff0; background:t47; color:t23; padding:2;'
+	input := 'display:block; width:50%; border:dashed #ff0; text-background:t47; text-color:t23; padding:2;'
 	dump('--- test_css_style_parse ---')
 	dump('Input: "${input}"')
 	style := css_style_parse(input)
@@ -27,22 +27,22 @@ fn test_css_style_parse() {
 	dump('width         = typ=${style.width.typ}, value=${style.width.value}')
 	dump('border.style  = ${style.border.style}')
 	dump('border.color  = ${style.border.color}')
-	dump('background    = ${style.text_style.bg}')
-	dump('color         = ${style.text_style.fg}')
+	dump('background    = ${style.text_style.background}')
+	dump('color         = ${style.text_style.color}')
 	dump('padding       = typ=${style.padding.typ}, value=${style.padding.value}')
 }
 
 fn test_rgb() {
-	input := 'display:block; width:50%; border:dashed #ffff00; background:#ffff00; color:#111111; padding:2;'
+	input := 'display:block; width:50%; border:dashed #ffff00; text-background:#ffff00; color:#111111; padding:2;'
 	dump('--- test_css_style_parse ---')
 	dump('Input: "${input}"')
 	style := css_style_parse(input)
-	dump(style.text_style.bg_red())
-	dump(style.text_style.bg_green())
-	dump(style.text_style.bg_blue())
-	dump(style.text_style.fg_red())
-	dump(style.text_style.fg_green())
-	dump(style.text_style.fg_blue())
+	dump(style.text_style.background.red())
+	dump(style.text_style.background.green())
+	dump(style.text_style.background.blue())
+	dump(style.text_style.color.red())
+	dump(style.text_style.color.green())
+	dump(style.text_style.color.blue())
 }
 
 fn test_build_dom_node() {

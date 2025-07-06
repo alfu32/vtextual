@@ -303,6 +303,19 @@ pub fn css_border_new() CSSBorder {
 	}
 }
 
+pub fn (cc CSSBorder) apply_background(str string) string {
+	return term.bg_rgb(cc.background.red(), cc.background.green(), cc.background.blue(),
+		str)
+}
+
+pub fn (cc CSSBorder) apply_foreground(str string) string {
+	return term.rgb(cc.color.red(), cc.color.green(), cc.color.blue(), str)
+}
+
+pub fn (cc CSSBorder) apply(str string) string {
+	return cc.apply_foreground(cc.apply_background(str))
+}
+
 pub struct CSSStyle {
 pub mut:
 	display    CSSDisplay     = .undefined
@@ -315,10 +328,10 @@ pub mut:
 	border     CSSBorder      = css_border_new()
 	box_sizing BoxSizing      = .undefined
 	text_style CssColorConfig = CssColorConfig{
-		styles: []
-		fg:     css_color_new()
-		bg:     css_color_new()
-		typ:    .undefined
+		styles:     []
+		color:      css_color_new()
+		background: css_color_new()
+		typ:        .undefined
 	}
 	overflow_x CSSOverflow = .undefined
 	overflow_y CSSOverflow = .undefined
@@ -341,8 +354,8 @@ pub fn (this CSSStyle) copy() CSSStyle {
 	}
 }
 
-pub fn (style CSSStyle) get_css_box() Box {
-	return Box{
+pub fn (style CSSStyle) get_css_box() BoundingBox {
+	return BoundingBox{
 		typ: 'CssBox'
 		x:   style.left.value
 		y:   style.top.value
@@ -476,33 +489,59 @@ fn (c CssColor) to_string() string {
 	return '#${c.value:06X}'
 }
 
+pub fn (c CssColor) red() u8 {
+	return u8((c.value & 0xFF0000) >> 16)
+}
+
+pub fn (c CssColor) green() u8 {
+	return u8((c.value & 0xFF00) >> 8)
+}
+
+pub fn (c CssColor) blue() u8 {
+	return u8((c.value & 0xFF))
+}
+
 enum CssColorConfigType {
 	default
+	color
 	undefined
 }
 
 struct CssColorConfig {
 pub mut:
-	styles []term.TextStyle   = []
-	fg     CssColor           = css_color_new()
-	bg     CssColor           = css_color_new()
-	typ    CssColorConfigType = .undefined
+	styles     []term.TextStyle   = []
+	color      CssColor           = css_color_new()
+	background CssColor           = css_color_new()
+	typ        CssColorConfigType = .undefined
 }
 
 pub fn (cc CssColorConfig) copy() CssColorConfig {
 	return CssColorConfig{
-		styles: cc.styles
-		fg:     cc.fg
-		bg:     cc.bg
-		typ:    cc.typ
+		styles:     cc.styles
+		color:      cc.color
+		background: cc.background
+		typ:        cc.typ
 	}
+}
+
+pub fn (cc CssColorConfig) apply_background(str string) string {
+	return term.bg_rgb(cc.background.red(), cc.background.green(), cc.background.blue(),
+		str)
+}
+
+pub fn (cc CssColorConfig) apply_foreground(str string) string {
+	return term.rgb(cc.color.red(), cc.color.green(), cc.color.blue(), str)
+}
+
+pub fn (cc CssColorConfig) apply(str string) string {
+	return cc.apply_foreground(cc.apply_background(str))
 }
 
 pub fn (this CssColorConfig) accumulate(other CssColorConfig) CssColorConfig {
 	mut new_ccc := CssColorConfig{}
 	new_ccc.typ = if other.typ != .undefined { other.typ } else { this.typ }
-	new_ccc.fg = if other.typ != .undefined { this.fg.accumulate(other.fg) } else { this.fg }
-	new_ccc.bg = if other.typ != .undefined { this.fg.accumulate(other.bg) } else { this.bg }
+	new_ccc.color = if other.typ != .undefined { other.color } else { this.color }
+	new_ccc.background = if other.typ != .undefined { other.background } else { this.background }
 	new_ccc.styles = if other.styles.len != 0 { other.styles } else { this.styles }
 	return new_ccc
 }
@@ -510,42 +549,18 @@ pub fn (this CssColorConfig) accumulate(other CssColorConfig) CssColorConfig {
 pub fn (this CssColorConfig) override(other CssColorConfig) CssColorConfig {
 	mut new_ccc := CssColorConfig{}
 	new_ccc.typ = if other.typ != .undefined { other.typ } else { this.typ }
-	new_ccc.fg = if other.typ != .undefined { this.fg.accumulate(other.fg) } else { this.fg }
-	new_ccc.bg = if other.typ != .undefined { this.fg.accumulate(other.bg) } else { this.bg }
+	new_ccc.color = if other.typ != .undefined { other.color } else { this.color }
+	new_ccc.background = if other.typ != .undefined { other.background } else { this.background }
 	new_ccc.styles = if other.styles.len != 0 { other.styles } else { this.styles }
 	return new_ccc
 }
 
-pub fn (cc CssColorConfig) bg_red() u8 {
-	return u8((cc.bg.value & 0xFF0000) >> 16)
-}
-
-pub fn (cc CssColorConfig) bg_green() u8 {
-	return u8((cc.bg.value & 0xFF00) >> 8)
-}
-
-pub fn (cc CssColorConfig) bg_blue() u8 {
-	return u8((cc.bg.value & 0xFF))
-}
-
-pub fn (cc CssColorConfig) fg_red() u8 {
-	return u8((cc.fg.value & 0xFF0000) >> 16)
-}
-
-pub fn (cc CssColorConfig) fg_green() u8 {
-	return u8((cc.fg.value & 0xFF00) >> 8)
-}
-
-pub fn (cc CssColorConfig) fg_blue() u8 {
-	return u8((cc.fg.value & 0xFF))
-}
-
 pub fn (ccc CssColorConfig) to_string() string {
-	return 'decoration:${ccc.styles};fg:#${ccc.fg.value:06X};bg:#${ccc.bg.value:06X}'
+	return 'text-decoration:${ccc.styles};text-color:#${ccc.color.value:06X};text-background:#${ccc.background.value:06X}'
 }
 
 pub fn (ccc CssColorConfig) str() string {
-	return '{styles:[${ccc.styles}],fg:0x${ccc.fg.value:06X},bg:0x${ccc.bg.value:06X}}'
+	return '{text-decoration:${ccc.styles},text-color:0x${ccc.color.value:06X},text-background:0x${ccc.background.value:06X}}'
 }
 
 pub fn css_color_parse(text string) !CssColor {
@@ -569,8 +584,8 @@ pub fn css_color_parse(text string) !CssColor {
 		}
 	} else {
 		// dump(tt[0].ascii_str())
-		match tt[0].ascii_str() {
-			'#' {
+		match tt[0] {
+			'#'[0] {
 				a := tt.substr(1, tt.len)
 				// dump("parse a ${a}")
 				b := a.parse_int(16, 32)!
@@ -693,17 +708,20 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 				else { this.box_sizing = .undefined }
 			}
 		}
-		'background' {
+		'text-background' {
 			// dump("background ${val}")
-			this.text_style.bg = css_color_parse(val) or { css_color_new() }
+			this.text_style.typ = .color
+			this.text_style.background = css_color_parse(val) or { css_color_new() }
 			// dump("background ${s.text_style.bg:06x}")
 		}
-		'color' {
+		'text-color' {
 			// dump("color ${val}")
-			this.text_style.fg = css_color_parse(val) or { css_color_new() }
+			this.text_style.typ = .color
+			this.text_style.color = css_color_parse(val) or { css_color_new() }
 			// dump("color ${s.text_style.fg:06x}")
 		}
 		'text-decoration' {
+			this.text_style.typ = .color
 			this.text_style.styles = []
 			for tex in val.split(',') {
 				match tex.trim(' ').to_lower() {

@@ -1,24 +1,57 @@
 module vdom
 
+import math
+
 // ─── DRAWABLES ───────────────────────────────────────────────────────────────
 
 // pub type Color = string
 
-pub struct Box {
+pub struct Point {
 pub mut:
-	typ string = 'box'
-	x   int
-	y   int
-	w   int
-	h   int
-	z   u64
+	x i64
+	y i64
+	z i64
 }
 
-pub fn (b Box) grow(n int) Box {
-	mut nw := b.w
-	mut nh := b.h
-	mut ny := b.y
-	mut nx := b.x
+pub fn (a Point) add(b Point) Point {
+	return Point{
+		x: a.x + b.x
+		y: a.y + b.y
+		z: a.z + b.z
+	}
+}
+
+pub fn (a Point) box(b Point) BoundingBox {
+	x0 := math.min(a.x, b.x)
+	y0 := math.min(a.y, b.y)
+	x1 := math.max(a.x, b.x)
+	y1 := math.max(a.y, b.y)
+	return BoundingBox{
+		x: x0
+		y: y0
+		w: x1 - x0
+		h: y1 - y0
+		z: 0
+	}
+}
+
+pub struct BoundingBox {
+pub mut:
+	typ string = 'box'
+	x   i64
+	y   i64
+	w   i64
+	h   i64
+	z   i64
+}
+
+// Box.z = 0
+
+pub fn (bb BoundingBox) grow(n i64) BoundingBox {
+	mut nw := bb.w
+	mut nh := bb.h
+	mut ny := bb.y
+	mut nx := bb.x
 	if nw + 2 * n > 0 {
 		nw = nw + 2 * n
 		nx = nx - n
@@ -27,124 +60,118 @@ pub fn (b Box) grow(n int) Box {
 		nh = nh + 2 * n
 		ny = ny - n
 	}
-	return Box{
+	return BoundingBox{
 		typ: 'box'
 		x:   nx
 		y:   ny
 		w:   nw
 		h:   nh
-		z:   b.z + 1
+		z:   bb.z + 1
 	}
 }
 
-pub fn (b Box) below() Box {
-	return Box{
-		typ: 'box'
-		x:   b.x
-		y:   b.y + b.h
-		w:   b.w
-		h:   b.h
-		z:   b.z + 1
+pub fn (bb BoundingBox) add(c BoundingBox) BoundingBox {
+	x0 := math.min(bb.x, c.x)
+	y0 := math.min(bb.y, c.y)
+	x1 := math.max(bb.x + bb.w, c.x + c.w)
+	y1 := math.max(bb.y + bb.w, c.y + bb.h)
+	return BoundingBox{
+		typ: bb.typ
+		x:   x0
+		y:   y0
+		w:   x1 - x0
+		h:   y1 - y0
+		z:   bb.z + 1
 	}
 }
 
-pub fn (b Box) right() Box {
-	return Box{
-		typ: 'box'
-		x:   b.x + b.w
-		y:   b.y
-		w:   b.w
-		h:   b.h
-		z:   b.z + 1
-	}
+pub fn (bb BoundingBox) str() string {
+	return '[${bb.x},${bb.y},${bb.x + bb.w},${bb.y + bb.h}]'
 }
 
 pub struct Rect {
 	typ          string = 'rect'
 	css          string
-	x            int
-	y            int
-	width        int
-	height       int
+	x            i64
+	y            i64
+	width        i64
+	height       i64
 	color_config CssColorConfig
-	z_index      u64
+	z_index      i64
 }
 
 pub struct Horizontal {
 	typ          string = 'horizontal'
 	css          string
-	x            int
-	y            int
+	x            i64
+	y            i64
 	value        string
-	color_config CssColorConfig
-	z_index      u64
+	color_config CSSBorder
+	z_index      i64
 }
 
 pub struct Vertical {
 	typ          string = 'vertical'
 	css          string
-	x            int
-	y            int
+	x            i64
+	y            i64
 	value        string
-	color_config CssColorConfig
-	z_index      u64
+	color_config CSSBorder
+	z_index      i64
 }
 
 pub struct Text {
 	typ          string = 'text'
 	css          string
-	x            int
-	y            int
+	x            i64
+	y            i64
 	value        string
 	color_config CssColorConfig
-	z_index      u64
+	z_index      i64
 }
 
 pub type Drawable = Rect | Horizontal | Vertical | Text
 
-struct Rectangle {
-	x int
-	y int
-	w int
-	h int
-}
-
-pub fn (r Rectangle) str() string {
-	return '[${r.x},${r.y},${r.x + r.w},${r.y + r.h}]'
-}
-
-pub fn (d Drawable) get_bounding_rect() Rectangle {
+pub fn (d Drawable) get_bounding_box() BoundingBox {
 	return match d {
 		Rect {
-			Rectangle{
-				x: d.x
-				y: d.y
-				w: d.width
-				h: d.height
+			BoundingBox{
+				typ: d.typ
+				x:   d.x
+				y:   d.y
+				w:   d.width
+				h:   d.height
+				z:   0
 			}
 		}
 		Horizontal {
-			Rectangle{
-				x: d.x
-				y: d.y
-				w: d.value.len
-				h: 1
+			BoundingBox{
+				typ: d.typ
+				x:   d.x
+				y:   d.y
+				w:   d.value.len
+				h:   1
+				z:   0
 			}
 		}
 		Vertical {
-			Rectangle{
-				x: d.x
-				y: d.y
-				w: 1
-				h: d.value.len
+			BoundingBox{
+				typ: d.typ
+				x:   d.x
+				y:   d.y
+				w:   1
+				h:   d.value.len
+				z:   0
 			}
 		}
 		Text {
-			Rectangle{
-				x: d.x
-				y: d.y
-				w: d.value.len
-				h: 1
+			BoundingBox{
+				typ: d.typ
+				x:   d.x
+				y:   d.y
+				w:   d.value.len
+				h:   1
+				z:   0
 			}
 		}
 	}

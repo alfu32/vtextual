@@ -1,6 +1,6 @@
 module vdom
 
-import strings
+import math
 
 pub struct Canvas {
 	width  u32
@@ -12,37 +12,27 @@ pub struct Canvas {
 pub fn render(dom DOM, canvas Canvas, stylesheet CssStylesheet) map[string][]Drawable {
 	mut out := map[string][]Drawable{}
 	// initial containing block = entire canvas
-	render_node(dom.root, stylesheet, Box{'Canvas', 0, 0, int(canvas.width), int(canvas.height)}, mut
+	render_node(dom.root, stylesheet, BoundingBox{'Canvas', 0, 0, int(canvas.width), int(canvas.height), 0}, mut
 		out, 0)
 	return out
 }
 
-fn render_node(node &DomNode, stylesheet CssStylesheet,
-	parent_box Box,
-	mut out map[string][]Drawable, z u64) {
+fn render_node(node &DomNode, stylesheet CssStylesheet, parent_box BoundingBox, mut out map[string][]Drawable, z i64) BoundingBox {
 	mut zz := z
-	css := stylesheet.apply_to_node(node).override(node.style)
-	if node.tag == '#text' {
-		out[node.id] << Text{
-			typ:          'Text'
-			css:          node.style.to_string()
-			x:            parent_box.x + 1
-			y:            parent_box.y + 1
-			value:        node.text
-			color_config: css.text_style
-			z_index:      xx++
-		}
-		return
-	}
+	css_sheet := stylesheet.get_style(node)
+	dump('${node.attributes['id']} ${css_sheet}')
+	css := css_sheet.override(node.style)
+	dump('${node.attributes['id']} ${css}')
 	// dump('// 3) text node')
-	css_box := css.get_css_box()
-	b := Box{
+	mut css_box := css.get_css_box()
+	zz++
+	mut b := BoundingBox{
 		typ: 'NodeBox'
 		x:   parent_box.x + css_box.x
 		y:   parent_box.y + css_box.y
 		w:   css_box.w
 		h:   css_box.h
-		z:   zz++
+		z:   zz
 	}
 	out[node.id] = []
 	out[node.id] << Rect{
@@ -57,20 +47,55 @@ fn render_node(node &DomNode, stylesheet CssStylesheet,
 	}
 	// dump('// 2) borders')
 	if node.style.border.style != .none {
-		bc := (node.style.text_style)
-		cc := node.style.border
-		tl, t, tr, l, bl, bb, br, r := cc.definition.runes()
+		cc := css.border
+		runes := cc.definition.runes()
+		// ╭─────────╮
+		// │         │
+		// │         │
+		// ╰─────────╯
+		tl := runes[0] or { `╭` }
+		t := runes[1] or { `─` }
+		tr := runes[2] or { `╮` }
+		l := runes[3] or { `│` }
+		bl := runes[4] or { `╰` }
+		bb := runes[5] or { `─` }
+		br := runes[6] or { `╯` }
+		r := runes[7] or { `│` }
 		// top
-		out[node.id] << Horizontal{'HorizontalTop', node.style.to_string(), b.x, b.y, '${tl}${t.repeat(b.w - 2)}${tr}', cc, zz++}
+		zz++
+		out[node.id] << Horizontal{'HorizontalTop', node.style.to_string(), b.x, b.y, '${tl}${t.repeat(int(b.w) - 2)}${tr}', cc, zz}
 		// bottom
-		out[node.id] << Horizontal{'HorizontalBottom', node.style.to_string(), b.x + b.w - 1, b.y, '${bl}${bb.repeat(b.w - 2)}${br}', cc, zz++}
+		zz++
+		out[node.id] << Horizontal{'HorizontalBottom', node.style.to_string(), b.x, b.y + b.h - 1, '${bl}${bb.repeat(int(b.w) - 2)}${br}', cc, zz}
 		// left
-		out[node.id] << Horizontal{'HorizontalLeft', node.style.to_string(), b.x, b.y + 1, '${l.repeat(b.h - 2)}', cc, zz++}
+		zz++
+		out[node.id] << Vertical{'VerticalLeft', node.style.to_string(), b.x, b.y + 1, '${l.repeat(int(b.h) - 2)}', cc, zz}
 		// right
-		out[node.id] << Horizontal{'HorizontalRight', node.style.to_string(), x, y, '${r.repeat(b.w - 2)}', cc, zz++}
+		zz++
+		out[node.id] << Vertical{'VerticalRight', node.style.to_string(), b.x + b.w - 1, b.y + 1, '${r.repeat(int(b.h) - 2)}', cc, zz}
 	}
+	// last_y := i64(0)
 	for child in node.children {
+		zz++
+		if child.tag == '#text' {
+			zz++
+			out[node.id] << Text{
+				typ:          'Text'
+				css:          node.style.to_string()
+				x:            parent_box.x + 1
+				y:            parent_box.y + 1
+				value:        node.inner_text()
+				color_config: css.text_style
+				z_index:      zz
+			}
+			b.h += 1
+			b.w = math.max(b.h, node.text.len)
+		} else {
+			rb := render_node(child, stylesheet, b, mut out, zz)
+			zz = rb.z
+		}
 		// recurse
-		render_node(child, stylesheet, b, mut out, zz++)
 	}
+	b.z = zz
+	return b
 }

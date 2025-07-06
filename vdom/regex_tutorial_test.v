@@ -60,7 +60,7 @@ fn test_work_parse_css_stylesheet() {
 	input := '
 		.element-class{
 			width:333;
-			background:#edffaa;
+			text-background:#edffaa;
 			display:block;
 			position:absolute;
 			top:12;
@@ -80,7 +80,7 @@ fn test_work_parse_css_stylesheet() {
 		}
 		#element-id{
 			width:333;
-			background:#edffaa;
+			text-background:#edffaa;
 			display:block;
 			position:relative;
 			top:12;
@@ -100,7 +100,7 @@ fn test_work_parse_css_stylesheet() {
 		}
 		tag-name{
 			width:333;
-			background:#edffaa;
+			text-background:#edffaa;
 			display:block;
 			position:fixed;
 			top:12;

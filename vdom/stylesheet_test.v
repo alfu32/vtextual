@@ -41,7 +41,7 @@ fn test_stylesheet_parsing_full_defs() {
 	input := '
 		.element-class{
 			width:333;
-			background:#edffaa;
+			text-background:#edffaa;
 			display:block;
 			position:absolute;
 			top:12;
@@ -61,7 +61,7 @@ fn test_stylesheet_parsing_full_defs() {
 		}
 		#element-id{
 			width:333;
-			background:#edffaa;
+			text-background:#edffaa;
 			display:block;
 			position:relative;
 			top:12;
@@ -81,7 +81,7 @@ fn test_stylesheet_parsing_full_defs() {
 		}
 		tag-name{
 			width:333;
-			background:#edffaa;
+			text-background:#edffaa;
 			display:block;
 			position:fixed;
 			top:12;

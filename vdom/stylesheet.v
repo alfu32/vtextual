@@ -57,7 +57,7 @@ fn css_stylesheet_parse_old(input string) CssStylesheet {
 
 fn css_stylesheet_parse(raw_definition string) CssStylesheet {
 	input := raw_definition.trim_indent()
-	def_pattern := r'([a-z#.\-]+)\{.*\}'
+	def_pattern := r'([0-9A-Za-z#.\-]+)\{.*\}'
 	mut def_re := regex.regex_opt(def_pattern) or { panic(err) }
 	defs := def_re.find_all_str(input)
 	// dump_value('input', &input)
@@ -65,7 +65,7 @@ fn css_stylesheet_parse(raw_definition string) CssStylesheet {
 	// dump_value('result', &defs)
 	rule_pattern := r'\s*[a-z\-]+\s*:\s*.*;\s*'
 	mut rule_re := regex.regex_opt(rule_pattern) or { panic(err) }
-	selector_pattern := r'^[a-z#.\-]+'
+	selector_pattern := r'^[0-9A-Za-z#.\-]+'
 	mut selector_re := regex.regex_opt(selector_pattern) or { panic(err) }
 	mut stylesheet := CssStylesheet{}
 	for def in defs {
@@ -90,7 +90,7 @@ fn css_stylesheet_parse(raw_definition string) CssStylesheet {
 	return stylesheet
 }
 
-pub fn (s CssStylesheet) apply_to_node(node &DomNode) CSSStyle {
+pub fn (s CssStylesheet) get_style(node &DomNode) CSSStyle {
 	undef := 'undefined-${node.id}'
 	id := node.attributes['id'] or { undef }
 	class_name := node.attributes['class'] or { undef }

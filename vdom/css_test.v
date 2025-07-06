@@ -1,7 +1,7 @@
 module vdom
 
 fn test_css_style_overwrite() {
-	style1 := css_style_parse('width:30;background:#304050;position:absolute')
+	style1 := css_style_parse('width:30;text-background:#304050;position:absolute')
 	style2 := css_style_parse('width:40')
 	style3 := style1.accumulate(style2)
 	style4 := style2.accumulate(style1)
@@ -9,16 +9,16 @@ fn test_css_style_overwrite() {
 	dump('${style2.width} <- ${style1.width} = ${style4.width}')
 	assert style3.width.value == 40
 	assert style4.width.value == 30
-	dump('${style1.text_style.bg.to_u32():06X} <- ${style2.text_style.bg.to_u32():06X} = ${style3.text_style.bg.to_u32():06X}')
-	dump('${style2.text_style.bg.to_u32():06X} <- ${style1.text_style.bg.to_u32():06X} = ${style4.text_style.bg.to_u32():06X}')
-	assert style3.text_style.bg == css_color_parse_u32(0x304050)
-	assert style4.text_style.bg == css_color_parse_u32(0x304050)
+	dump('${style1.text_style.background.to_u32():06X} <- ${style2.text_style.background.to_u32():06X} = ${style3.text_style.background.to_u32():06X}')
+	dump('${style2.text_style.background.to_u32():06X} <- ${style1.text_style.background.to_u32():06X} = ${style4.text_style.background.to_u32():06X}')
+	assert style3.text_style.background == css_color_parse_u32(0x304050)
+	assert style4.text_style.background == css_color_parse_u32(0x304050)
 	dump('${style1.position} <- ${style2.position} = ${style3.position}')
 	dump('${style2.position} <- ${style1.position} = ${style4.position}')
 }
 
 fn test_css_style_override() {
-	style1 := css_style_parse('width:30;height:90;background:#304050;position:absolute')
+	style1 := css_style_parse('width:30;height:90;text-background:#304050;position:absolute')
 	style2 := css_style_parse('width:40')
 	style3 := style1.override(style2)
 	style4 := style2.override(style1)
@@ -30,10 +30,10 @@ fn test_css_style_override() {
 	dump('${style2.height} <- ${style1.height} = ${style4.height}')
 	assert style3.height.value == 0
 	assert style4.height.value == 90
-	dump('${style1.text_style.bg.to_u32():06X} <- ${style2.text_style.bg.to_u32():06X} = ${style3.text_style.bg.to_u32():06X}')
-	dump('${style2.text_style.bg.to_u32():06X} <- ${style1.text_style.bg.to_u32():06X} = ${style4.text_style.bg.to_u32():06X}')
-	assert style3.text_style.bg == css_color_parse_u32(0x304050)
-	assert style4.text_style.bg == css_color_parse_u32(0x304050)
+	dump('${style1.text_style.background.to_u32():06X} <- ${style2.text_style.background.to_u32():06X} = ${style3.text_style.background.to_u32():06X}')
+	dump('${style2.text_style.background.to_u32():06X} <- ${style1.text_style.background.to_u32():06X} = ${style4.text_style.background.to_u32():06X}')
+	assert style3.text_style.background == css_color_parse_u32(0x304050)
+	assert style4.text_style.background == css_color_parse_u32(0x304050)
 	dump('${style1.position} <- ${style2.position} = ${style3.position}')
 	dump('${style2.position} <- ${style1.position} = ${style4.position}')
 }
