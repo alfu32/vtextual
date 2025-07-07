@@ -17,9 +17,10 @@ pub mut:
 	style           CSSStyle
 	event_listeners map[string][]EventCallback
 	children        []&DomNode
-	parent          voidptr
+	parent          &DomNode
 	dirty           bool
 	text            string
+	scroll          Point
 }
 
 // returns a DomNode with all defaults
@@ -37,6 +38,7 @@ pub fn dom_node_new() DomNode {
 	}
 }
 
+@[heap]
 pub struct DOM {
 pub mut:
 	width  int
@@ -44,12 +46,52 @@ pub mut:
 	root   &DomNode
 }
 
-pub fn find_node(parent_node &DomNode, node_id string) ?&DomNode {
-	if parent_node.id == node_id {
-		return parent_node
+pub fn (node DomNode) query_selector_all(selector string) []string {
+	mut found_nodes := []string{}
+	selector_type := selector.substr(0, 1)
+	selector_value := selector.substr(1, selector.len)
+	condition := match selector_type {
+		'#' {
+			id := (node.attributes['id'] or { '' })
+			id == selector_value
+		}
+		'.' {
+			classes := (node.attributes['class'] or { '' })
+			selector_value in classes.split(' ')
+		}
+		else {
+			node.tag == selector
+		}
+	}
+	if condition {
+		found_nodes << node.id
+	}
+	// index := "${node.attributes['id'] or {''}} ${node.attributes['class'] or {''}} ${node.tag}"
+	// if index.contains(selector_value) || index.contains(selector) {
+	// 	dump("$selector_value in  '$index'")
+	// 	found_nodes << &node
+	// }
+	for c in node.children {
+		fnn := c.query_selector_all(selector)
+		for nn in fnn {
+			found_nodes << nn
+		}
+	}
+	return found_nodes
+}
+
+pub fn (d DOM) query_selector_all(node_id string) []&DomNode {
+	return d.root.query_selector_all(node_id).map(fn [d] (id string) &DomNode {
+		return d.find_node(id) or { unsafe { nil } }
+	}).filter(it != unsafe { nil })
+}
+
+pub fn (node &DomNode) find_node(node_id string) ?&DomNode {
+	if node.id == node_id {
+		return node
 	} else {
-		for c in parent_node.children {
-			nn := find_node(c, node_id)
+		for c in node.children {
+			nn := c.find_node(node_id)
 			if nn != none {
 				return nn
 			}
@@ -58,8 +100,8 @@ pub fn find_node(parent_node &DomNode, node_id string) ?&DomNode {
 	}
 }
 
-pub fn (d DOM) find_node(node_id string) ?&DomNode {
-	return find_node(d.root, node_id)
+pub fn (d &DOM) find_node(node_id string) ?&DomNode {
+	return d.root.find_node(node_id)
 }
 
 // returns a DOM with a nil root
@@ -75,7 +117,7 @@ pub fn dom_node_parse(xml_frag string) &DomNode {
 	return build_dom_node(doc.root, unsafe { nil })
 }
 
-// parse the XML fragment and wrap it in a DOM
+// dom_parse parse the XML fragment and wrap it in a DOM
 pub fn dom_parse(xml_frag string) DOM {
 	mut root := dom_node_new()
 	root.style.width = CSSDimension{
@@ -96,7 +138,7 @@ pub fn dom_parse(xml_frag string) DOM {
 	}
 }
 
-fn build_dom_node(x xml.XMLNode, parent voidptr) &DomNode {
+fn build_dom_node(x xml.XMLNode, parent &DomNode) &DomNode {
 	style_str := x.attributes['style'] or { '' }
 	mut node := &DomNode{
 		tag:             x.name

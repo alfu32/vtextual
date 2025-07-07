@@ -82,7 +82,7 @@ fn test_work_parse_css_stylesheet() {
 			width:333;
 			text-background:#edffaa;
 			display:block;
-			position:relative;
+			position:relative-parent;
 			top:12;
 			left:14%;
 			right:11fr;

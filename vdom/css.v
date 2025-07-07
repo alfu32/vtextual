@@ -13,6 +13,7 @@ pub enum DimensionType {
 	undefined
 }
 
+@[heap]
 pub struct CSSDimension {
 pub mut:
 	typ   DimensionType
@@ -74,6 +75,18 @@ pub fn css_dimension_parse(val string) CSSDimension {
 			value: lc.trim_right('fr').i64()
 		}
 	}
+	if lc.ends_with('ch') {
+		return CSSDimension{
+			typ:   .chars
+			value: lc.trim_right('ch').i64()
+		}
+	}
+	if lc.ends_with('px') {
+		return CSSDimension{
+			typ:   .chars
+			value: lc.trim_right('ch').i64() >> 3
+		}
+	}
 	if lc.is_int() {
 		return CSSDimension{
 			typ:   .chars
@@ -103,7 +116,9 @@ pub fn (cssd CSSDisplay) override(other CSSDisplay) CSSDisplay {
 }
 
 pub enum CSSPosition {
-	relative
+	relative_parent
+	relative_sibling
+	absolute
 	undefined
 }
 
@@ -170,12 +185,22 @@ pub fn (bs CSSOverflow) override(other CSSOverflow) CSSOverflow {
 	return other
 }
 
+@[heap]
 pub struct CSSBorder {
 pub mut:
 	style      BorderStyle
 	definition string // = "+=+|+-+|"
-	color      CssColor
-	background CssColor
+	color      CssColor = css_color_new_foreground()
+	background CssColor = css_color_new()
+}
+
+pub fn (cssb CSSBorder) copy() CSSBorder {
+	return CSSBorder{
+		style:      cssb.style
+		definition: cssb.definition
+		color:      cssb.color.copy()
+		background: cssb.background.copy()
+	}
 }
 
 pub fn (cssb CSSBorder) accumulate(other CSSBorder) CSSBorder {
@@ -298,7 +323,7 @@ pub fn css_border_new() CSSBorder {
 	return CSSBorder{
 		style:      .undefined
 		definition: ''
-		color:      css_color_new()
+		color:      css_color_new_foreground()
 		background: css_color_new()
 	}
 }
@@ -316,6 +341,7 @@ pub fn (cc CSSBorder) apply(str string) string {
 	return cc.apply_foreground(cc.apply_background(str))
 }
 
+@[heap]
 pub struct CSSStyle {
 pub mut:
 	display    CSSDisplay     = .undefined
@@ -329,7 +355,7 @@ pub mut:
 	box_sizing BoxSizing      = .undefined
 	text_style CssColorConfig = CssColorConfig{
 		styles:     []
-		color:      css_color_new()
+		color:      css_color_new_foreground()
 		background: css_color_new()
 		typ:        .undefined
 	}
@@ -450,20 +476,36 @@ enum CssColorType {
 	rgb
 }
 
+@[heap]
 struct CssColor {
 pub mut:
 	value u32
 	typ   CssColorType = .undefined
 }
 
+fn css_color_new_foreground() CssColor {
+	mut cl := CssColor{}
+	cl.value = 0xdddddd
+	return cl
+}
+
 fn css_color_new() CssColor {
-	return CssColor{}
+	mut cl := CssColor{}
+	cl.value = 0x111111
+	return cl
 }
 
 fn css_color_parse_u32(value u32) CssColor {
 	return CssColor{
 		value: value
 		typ:   .rgb
+	}
+}
+
+fn (c CssColor) copy() CssColor {
+	return CssColor{
+		value: c.value
+		typ:   c.typ
 	}
 }
 
@@ -510,7 +552,7 @@ enum CssColorConfigType {
 struct CssColorConfig {
 pub mut:
 	styles     []term.TextStyle   = []
-	color      CssColor           = css_color_new()
+	color      CssColor           = css_color_new_foreground()
 	background CssColor           = css_color_new()
 	typ        CssColorConfigType = .undefined
 }
@@ -618,7 +660,7 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 		}
 		'position' {
 			match val.to_lower() {
-				'relative' { this.position = .relative }
+				'relative-parent' { this.position = .relative_parent }
 				else { this.position = .undefined }
 			}
 		}
@@ -693,10 +735,10 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 				}
 			}
 			if parts2.len >= 2 {
-				this.border.color = css_color_parse(parts2[1]) or { css_color_new() }
+				this.border.color = css_color_parse(parts2[1]) or { css_color_new_foreground() }
 			}
 			if parts2.len >= 3 {
-				this.border.color = css_color_parse(parts2[1]) or { css_color_new() }
+				this.border.background = css_color_parse(parts2[2]) or { css_color_new() }
 			}
 			// dump(this.border)
 			// dump(this.border.definition)

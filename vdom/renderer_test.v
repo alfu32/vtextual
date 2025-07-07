@@ -13,7 +13,7 @@ fn test_display_none() {
 		width:  10
 		height: 3
 	}
-	drawables := render(dom, canvas, stylesheet)
+	drawables := canvas.render(&dom, stylesheet)
 	dump(drawables)
 }
 
@@ -28,12 +28,12 @@ fn test_position_absolute() {
 		height: 5
 	}
 	stylesheet := css_stylesheet_parse('')
-	drawables := render(dom, canvas, stylesheet)
+	drawables := canvas.render(&dom, stylesheet)
 
 	dump(drawables)
 }
 
-// percentage width/height should scale relative to parent/canvas
+// percentage width/height should scale relative-parent to parent/canvas
 fn test_width_height_percentage() {
 	html := '<div style="width:50%;height:50%;text-background:green"></div>'
 	dom := dom_parse(html)
@@ -42,7 +42,7 @@ fn test_width_height_percentage() {
 		height: 10
 	}
 	stylesheet := css_stylesheet_parse('')
-	drawables := render(dom, canvas, stylesheet)
+	drawables := canvas.render(&dom, stylesheet)
 	dump(drawables)
 	dump(dom.root)
 	// expect exactly one green Rect at (0,0) size 10×5
@@ -68,7 +68,7 @@ fn test_overflow_hidden() {
 		height: 3
 	}
 	stylesheet := css_stylesheet_parse('')
-	drawables := render(dom, canvas, stylesheet)
+	drawables := canvas.render(&dom, stylesheet)
 	dump(drawables)
 
 	// // text is entirely outside the clipped region → no Text drawables
@@ -83,14 +83,14 @@ fn test_overflow_hidden() {
 
 // position:relative with top/left offsets should shift the element
 fn test_top_left_relative() {
-	html := '<div style="position:relative;top:1;left:2;width:5;height:2;text-background:blue"></div>'
+	html := '<div style="position:relative-parent;top:1;left:2;width:5;height:2;text-background:blue"></div>'
 	dom := dom_parse(html)
 	canvas := Canvas{
 		width:  10
 		height: 5
 	}
 	stylesheet := css_stylesheet_parse('')
-	drawables := render(dom, canvas, stylesheet)
+	drawables := canvas.render(dom, stylesheet)
 
 	dump(drawables)
 }
@@ -106,6 +106,6 @@ fn test_absolute_right_bottom() {
 		height: 8
 	}
 	stylesheet := css_stylesheet_parse('')
-	drawables := render(dom, canvas, stylesheet)
+	drawables := canvas.render(dom, stylesheet)
 	dump(drawables)
 }

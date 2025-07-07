@@ -5,8 +5,8 @@ import term
 struct VTRenderer {
 pub mut:
 	canvas     Canvas
-	document   DOM
-	stylesheet CssStylesheet
+	document   &DOM
+	stylesheet &CssStylesheet
 }
 
 pub fn vt_renderer_init(html string, css string, width u32, height u32) VTRenderer {
@@ -17,14 +17,14 @@ pub fn vt_renderer_init(html string, css string, width u32, height u32) VTRender
 			width:  width
 			height: height
 		}
-		document:   dom
-		stylesheet: stylesheet
+		document:   &dom
+		stylesheet: &stylesheet
 	}
 }
 
 pub fn (vt VTRenderer) render_debug() {
 	print(vt)
-	for node_id, drawables in render(vt.document, vt.canvas, vt.stylesheet) {
+	for node_id, drawables in vt.canvas.render(vt.document, vt.stylesheet) {
 		println(node_id)
 		for drawable in drawables {
 			match drawable {
@@ -46,9 +46,8 @@ pub fn (vt VTRenderer) render_debug() {
 }
 
 pub fn (vt VTRenderer) render() {
-	term.clear()
 	term.set_cursor_position(x: 0, y: 0)
-	for node_id, drawables in render(vt.document, vt.canvas, vt.stylesheet) {
+	for node_id, drawables in vt.canvas.render(vt.document, vt.stylesheet) {
 		node := vt.document.find_node(node_id)
 		_ := node_id
 		for drawable in drawables {
@@ -75,9 +74,9 @@ pub fn (vt VTRenderer) render() {
 fn draw_rect(r Rect, node ?&DomNode) {
 	// // println(r)
 
-	for y in 1 .. int(r.height) - 1 {
+	for y in 1 .. int(r.height) {
 		term.set_cursor_position(x: int(r.x), y: int(r.y) + y)
-		tx := ` `.repeat(int(r.width - 2)) // "${r.x:03}x${y:02}"+
+		tx := ` `.repeat(int(r.width - 1)) // "${r.x:03}x${y:02}"+
 		print(r.color_config.apply(tx))
 	}
 	term.set_cursor_position(x: int(r.x + r.width) - 11, y: int(r.y + r.height) - 1)

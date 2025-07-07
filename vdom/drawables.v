@@ -46,6 +46,25 @@ pub mut:
 }
 
 // Box.z = 0
+pub fn (bb BoundingBox) translate(p Point) BoundingBox {
+	return BoundingBox{
+		typ: 'box'
+		x:   bb.x + p.x
+		y:   bb.y + p.y
+		w:   bb.w
+		h:   bb.h
+		z:   bb.z + 1
+	}
+}
+
+// Box.z = 0
+pub fn (bb BoundingBox) top_left() Point {
+	return Point{
+		x: bb.x
+		y: bb.y
+		z: bb.z
+	}
+}
 
 pub fn (bb BoundingBox) grow(n i64) BoundingBox {
 	mut nw := bb.w
@@ -89,6 +108,7 @@ pub fn (bb BoundingBox) str() string {
 	return '[${bb.x},${bb.y},${bb.x + bb.w},${bb.y + bb.h}]'
 }
 
+@[heap]
 pub struct Rect {
 	typ          string = 'rect'
 	css          string
@@ -100,6 +120,7 @@ pub struct Rect {
 	z_index      i64
 }
 
+@[heap]
 pub struct Horizontal {
 	typ          string = 'horizontal'
 	css          string
@@ -110,6 +131,7 @@ pub struct Horizontal {
 	z_index      i64
 }
 
+@[heap]
 pub struct Vertical {
 	typ          string = 'vertical'
 	css          string
@@ -120,6 +142,7 @@ pub struct Vertical {
 	z_index      i64
 }
 
+@[heap]
 pub struct Text {
 	typ          string = 'text'
 	css          string

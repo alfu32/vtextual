@@ -63,7 +63,7 @@ fn test_stylesheet_parsing_full_defs() {
 			width:333;
 			text-background:#edffaa;
 			display:block;
-			position:relative;
+			position:relative-parent;
 			top:12;
 			left:14%;
 			right:11fr;
