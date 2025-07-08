@@ -57,7 +57,9 @@ fn css_stylesheet_parse_old(input string) CssStylesheet {
 
 fn css_stylesheet_parse(raw_definition string) CssStylesheet {
 	input := raw_definition.trim_indent()
-	def_pattern := r'([0-9A-Za-z#.\-]+)\{.*\}'
+	// def_pattern := r'([0-9A-Za-z#.\-]+)\{.*\}'
+
+	def_pattern := r'([0-9A-Za-z#.:\-]+\s*,*\s*)+\{.*\}'
 	mut def_re := regex.regex_opt(def_pattern) or { panic(err) }
 	defs := def_re.find_all_str(input)
 	// dump_value('input', &input)
@@ -65,27 +67,29 @@ fn css_stylesheet_parse(raw_definition string) CssStylesheet {
 	// dump_value('result', &defs)
 	rule_pattern := r'\s*[a-z\-]+\s*:\s*.*;\s*'
 	mut rule_re := regex.regex_opt(rule_pattern) or { panic(err) }
-	selector_pattern := r'^[0-9A-Za-z#.\-]+'
-	mut selector_re := regex.regex_opt(selector_pattern) or { panic(err) }
+	selectors_pattern := r'^([0-9A-Za-z#.:\-]+\s*,*\s*)+'
+	mut selector_re := regex.regex_opt(selectors_pattern) or { panic(err) }
 	mut stylesheet := CssStylesheet{}
 	for def in defs {
-		selector := selector_re.find_all_str(def)
+		selectors := selector_re.find_all_str(def)
 
 		// println("
 		// definition:
 		// ${def.trim(" ")}
-		// selector: ${selector[0]}
+		// selectors: ${selectors[0]}
 		// ".trim_indent())
-		sel := selector[0].trim(' \n\r\t')
-		stylesheet.styles[sel] = css_style_new()
-		rules := rule_re.find_all_str(def.trim(' \n\r\t'))
-		mut rules_text := []string{}
-		for rule in rules {
+		rules_defs := rule_re.find_all_str(def.trim(' \n\r\t'))
+		mut rules_clean_text := []string{}
+		for rule in rules_defs {
 			trimmed := rule.trim(' ;\n\r\t')
 			// println("   - rule_trimmed: $trimmed")
-			rules_text << trimmed
+			rules_clean_text << trimmed
 		}
-		stylesheet.styles[sel] = css_style_parse(rules_text.join(';'))
+		rules := css_style_parse(rules_clean_text.join(';'))
+		for sel in selectors[0].trim(' \n\r\t').split(',') {
+			selector := sel.trim(' ')
+			stylesheet.styles[selector] = rules
+		}
 	}
 	return stylesheet
 }

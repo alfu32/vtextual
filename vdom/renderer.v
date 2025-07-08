@@ -12,29 +12,100 @@ pub struct Canvas {
 
 pub fn (canvas &Canvas) render(dom &DOM, stylesheet &CssStylesheet) map[string][]&Drawable {
 	// initial containing block = entire canvas
-	out, bb := canvas.render_node(dom.root, stylesheet, BoundingBox{'Canvas', 1, 1, int(canvas.width), int(canvas.height), 0},
-		0)
+	mut drawables := map[string][]&Drawable{}
+	drawables['canvas'] = []
+
+	drawables['canvas'] << &Rect{
+		typ:          'Rect'
+		css:          ''
+		x:            0
+		y:            0
+		width:        int(canvas.width)
+		height:       int(canvas.height)
+		color_config: CssColorConfig{
+			styles:     []
+			color:      css_color_parse('#dede33') or {
+				CssColor{
+					value: 0x123123
+					typ:   .rgb
+				}
+			}
+			background: css_color_parse('#232333') or {
+				CssColor{
+					value: 0x123123
+					typ:   .rgb
+				}
+			}
+			typ:        .default
+		}
+		z_index:      0
+	}
+	out, bb, cursor := canvas.render_node(dom.root.children[0], stylesheet, BoundingBox{'Canvas', 1, 1, int(canvas.width), int(canvas.height), 0},
+		BoundingBox{'SiblingBox0', 1, 1, 0, 0, 0}, mut Point{})
 	_ := bb
-	return out
+	for id, dwc in out {
+		drawables[id] = dwc
+	}
+	return drawables
 }
 
-fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent_box BoundingBox, z i64) (map[string][]&Drawable, BoundingBox) {
+fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent_box BoundingBox, sibling_box BoundingBox, mut cursor Point) (map[string][]&Drawable, BoundingBox, Point) {
 	mut out := map[string][]&Drawable{}
-	mut zz := z
 	css_sheet := stylesheet.get_style(node)
 	// dump('${node.attributes['id']} ${css_sheet}')
 	css := css_sheet.override(node.style)
+	border_size := if css.border.style !in [.none, .undefined] { 1 } else { 0 }
+	extension_size := if css.border.style !in [.none, .undefined] { 0 } else { 1 }
 	// dump('${node.attributes['id']} ${css}')
 	// dump('// 3) text node')
-	mut css_box := css.get_css_box()
-	zz++
-	mut bounding_box := BoundingBox{
-		typ: 'NodeBox'
-		x:   parent_box.x + css_box.x
-		y:   parent_box.y + css_box.y
-		w:   css_box.w
-		h:   css_box.h
-		z:   zz
+	mut css_box := css.get_css_box(parent_box)
+	mut bounding_box := match css.position {
+		.undefined, .relative_parent {
+			BoundingBox{
+				typ: 'NodeBoxRelativeParent'
+				x:   parent_box.x + css_box.x
+				y:   parent_box.y + css_box.y
+				w:   css_box.w
+				h:   css_box.h
+				z:   cursor.next_z()
+			}
+		}
+		.relative_sibling {
+			BoundingBox{
+				typ: 'NodeBoxRelativeSibling'
+				x:   parent_box.x + match css.direction {
+					.ltr { sibling_box.x + sibling_box.w }
+					.ttb { 0 }
+					.undefined { 0 }
+				}
+				y:   parent_box.y + match css.direction {
+					.ltr { 0 }
+					.ttb { sibling_box.y + sibling_box.h - 1 }
+					.undefined { 0 }
+				}
+				w:   css_box.w
+				h:   css_box.h
+				z:   cursor.next_z()
+			}
+			// BoundingBox{
+			// 	typ: 'NodeBoxRelativeSibling'
+			// 	x:   parent_box.x + css_box.x
+			// 	y:   parent_box.y + css_box.y
+			// 	w:   css_box.w
+			// 	h:   css_box.h
+			// 	z:   cursor.next_z()
+			// }
+		}
+		.absolute {
+			BoundingBox{
+				typ: 'NodeBoxAbsolute'
+				x:   css_box.x
+				y:   css_box.y
+				w:   css_box.w
+				h:   css_box.h
+				z:   cursor.next_z()
+			}
+		}
 	}
 	mut content_box := BoundingBox{
 		typ: 'ChildrenBox'
@@ -42,53 +113,117 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 		y:   parent_box.y + css_box.y - node.scroll.y
 		w:   css_box.w
 		h:   css_box.h
-		z:   zz
+		z:   cursor.next_z()
 	}
 	out[node.id] << &Rect{
 		typ:          'Rect'
 		css:          node.style.to_string()
-		x:            bounding_box.x
-		y:            bounding_box.y
-		width:        bounding_box.w
-		height:       bounding_box.h
+		x:            bounding_box.x - extension_size
+		y:            bounding_box.y - extension_size
+		width:        bounding_box.w + 2 * extension_size
+		height:       bounding_box.h + 2 * extension_size
 		color_config: css.text_style.copy()
-		z_index:      zz++
+		z_index:      cursor.next_z()
 	}
 	// last_y := i64(0)
-	mut cursor := content_box.top_left()
-	if css.border.style != .none {
+	cursor = bounding_box.top_left()
+	if border_size > 0 {
 		cursor = cursor.add(x: 1, y: 1)
 	}
+	mut last_child := dom_node_new()
+	mut last_child_css := css_style_new()
+	mut last_child_box := BoundingBox{
+		typ: 'SiblingBox0'
+		x:   border_size
+		y:   border_size
+		w:   border_size
+		h:   border_size
+		z:   cursor.next_z()
+	}
 	for child in node.children {
-		zz++
+		mut child_css := stylesheet.get_style(node).override(child.style)
 		if child.tag == '#text' {
-			zz++
+			if node.inner_text().trim(' \n\r\t') == '' {
+				continue
+			}
 			for line in canvas.split_text_words(node.inner_text(), u64(bounding_box.w - 2)) {
-				out[node.id] << &Text{
+				if line.trim(' \n\r\t') == '' {
+					continue
+				}
+				t := &Text{
 					typ:          'Text'
-					css:          node.style.to_string()
+					css:          css.to_string()
 					x:            cursor.x
 					y:            cursor.y
 					value:        line
 					color_config: css.text_style.copy()
-					z_index:      zz
+					z_index:      cursor.next_z()
 				}
+				// if Drawable(t).get_bounding_box().overlaps(bounding_box) {
+				out[node.id] << t
+				//}
 				cursor.y += 1
 				content_box.h += 1
 				content_box.w = math.max(bounding_box.h, line.len)
+				last_child_box = BoundingBox{
+					typ: 'lastChild'
+					x:   cursor.x
+					y:   cursor.y
+					w:   line.len
+					h:   1
+					z:   cursor.next_z()
+				}
 			}
-		} else {
+		} else if child_css.position == .relative_parent || child_css.position == .undefined {
 			//
-			dwgs, rb := canvas.render_node(child, stylesheet, bounding_box.translate(
+			dwgs, rb, last_pos := canvas.render_node(child, stylesheet, bounding_box.translate(
 				x: -node.scroll.x
 				y: -node.scroll.y
-				z: zz
-			), zz)
-			zz = rb.z
+				z: 0
+			), last_child_box.translate(
+				x: -node.scroll.x
+				y: -node.scroll.y
+				z: 0
+			), mut cursor)
 			content_box.add(rb)
 			for id, dwg in dwgs {
-				out[id] = dwg
+				for d in dwg {
+					// if bounding_box.overlaps(d.get_bounding_box()) {
+					out[id] << d
+					//}
+				}
 			}
+			last_child_box.x = rb.x
+			last_child_box.y = rb.y
+			last_child_box.w = rb.w
+			last_child_box.h = rb.h
+		} else if child_css.position == .relative_sibling {
+			//
+			mut dwgs, rb, last_pos := canvas.render_node(child, stylesheet, bounding_box.translate(
+				x: -node.scroll.x
+				y: -node.scroll.y
+				z: cursor.next_z()
+			), last_child_box.translate(
+				x: -border_size * 2
+				y: -border_size * 2
+				z: cursor.next_z()
+			), mut cursor)
+			content_box.add(rb)
+			for id, mut dwg in dwgs {
+				mut ord := i64(0)
+				for d in dwg {
+					// if bounding_box.overlaps(d.get_bounding_box()) {
+					// d.y += ord*3
+					out[id] << d
+					//}
+				}
+				ord += 1
+			}
+			last_child_box.x = rb.x
+			last_child_box.y = rb.y
+			last_child_box.w = rb.w
+			last_child_box.h = rb.h
+		} else if child.style.position == .absolute {
 		}
 
 		match child.style.position {
@@ -100,7 +235,7 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 		// recurse
 	}
 	// dump('// 2) borders')
-	if css.border.style != .none {
+	if border_size > 0 {
 		cc := css.border
 		runes := cc.definition.runes()
 		// ╭─────────╮
@@ -116,7 +251,6 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 		br := runes[6] or { `╯` }
 		r := runes[7] or { `│` }
 		// top
-		zz++
 		out[node.id] << &Horizontal{
 			typ:          'HorizontalTop'
 			css:          css.border.to_string()
@@ -124,10 +258,19 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 			y:            bounding_box.y
 			value:        '${tl}${t.repeat(int(bounding_box.w) - 2)}${tr}'
 			color_config: css.border.copy()
-			z_index:      zz
+			z_index:      cursor.next_z()
+		}
+		// top box
+		out[node.id] << &Horizontal{
+			typ:          'HorizontalBottomBoxInfo'
+			css:          css.border.to_string()
+			x:            bounding_box.x + 2
+			y:            bounding_box.y
+			value:        '[${css.position}] <${node.tag}> #${node.attributes['id']} .${node.attributes['class']}'
+			color_config: css.border.copy()
+			z_index:      cursor.next_z()
 		}
 		// bottom
-		zz++
 		out[node.id] << &Horizontal{
 			typ:          'HorizontalBottom'
 			css:          css.border.to_string()
@@ -135,10 +278,19 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 			y:            bounding_box.y + bounding_box.h - 1
 			value:        '${bl}${bb.repeat(int(bounding_box.w) - 2)}${br}'
 			color_config: css.border.copy()
-			z_index:      zz
+			z_index:      cursor.next_z()
+		}
+		// bottom box
+		out[node.id] << &Horizontal{
+			typ:          'HorizontalBottomBoxInfo'
+			css:          css.border.to_string()
+			x:            bounding_box.x + 2
+			y:            bounding_box.y + bounding_box.h - 1
+			value:        bounding_box.str()
+			color_config: css.border.copy()
+			z_index:      cursor.next_z()
 		}
 		// left
-		zz++
 		out[node.id] << &Vertical{
 			typ:          'VerticalLeft'
 			css:          css.border.to_string()
@@ -146,10 +298,9 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 			y:            bounding_box.y + 1
 			value:        '${l.repeat(int(bounding_box.h) - 2)}'
 			color_config: css.border.copy()
-			z_index:      zz
+			z_index:      cursor.next_z()
 		}
 		// right
-		zz++
 		out[node.id] << &Vertical{
 			typ:          'VerticalRight'
 			css:          css.border.to_string()
@@ -157,13 +308,12 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 			y:            bounding_box.y + 1
 			value:        '${r.repeat(int(bounding_box.h) - 2)}'
 			color_config: css.border.copy()
-			z_index:      zz
+			z_index:      cursor.next_z()
 		}
 	}
-	if content_box.w > bounding_box.w {
+	if content_box.w - 2 * border_size > bounding_box.w {
 		bar_w := bounding_box.w * bounding_box.w / content_box.w
 		pos_x := node.scroll.x * bounding_box.w / content_box.w
-		zz++
 		out[node.id] << &Horizontal{
 			typ:          'ScrollBarX'
 			css:          css.border.to_string()
@@ -171,13 +321,12 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 			y:            bounding_box.y + bounding_box.h - 1
 			value:        '█'.repeat(int(bar_w))
 			color_config: css.border.copy()
-			z_index:      zz
+			z_index:      cursor.next_z()
 		}
 	}
-	if content_box.h > bounding_box.h {
+	if content_box.h - 2 * border_size > bounding_box.h {
 		bar_h := bounding_box.h * bounding_box.h / content_box.h
 		pos_y := node.scroll.y * bounding_box.h / content_box.h
-		zz++
 		out[node.id] << &Vertical{
 			typ:          'ScrollBarY'
 			css:          css.border.to_string()
@@ -185,15 +334,15 @@ fn (canvas &Canvas) render_node(node &DomNode, stylesheet &CssStylesheet, parent
 			y:            bounding_box.y + node.scroll.y + 1
 			value:        '█'.repeat(int(bar_h))
 			color_config: css.border.copy()
-			z_index:      zz
+			z_index:      cursor.next_z()
 		}
 	}
-	bounding_box.z = zz
+	bounding_box.z = cursor.z
 	// // out[node.id] = []
 	// for d in drawables {
 	// 	out[node.id] << d
 	// }
-	return out, bounding_box
+	return out, bounding_box, cursor
 }
 
 fn identity[T](a T) T {

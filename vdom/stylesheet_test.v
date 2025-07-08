@@ -8,6 +8,7 @@ pub:
 	#id{width:10}
 	.class{width:20}
 	tag{width:30}
+	tag, #some-id, .some-class, some-tag:hover {width:30}
 	'.trim_indent()
 }
 
@@ -15,6 +16,16 @@ fn test_regex() {
 	mut rule_re := regex.regex_opt(r'([#.]?\w+ ?)\s*\{(.* ?)\}') or { panic(err) }
 	dump(rule_re)
 	dump(TestCases{}.text_01)
+}
+
+fn test_regex_1() {
+	input := TestCases{}.text_01.trim_indent()
+	def_pattern := r'([0-9A-Za-z#.:\-]+\s*,*\s*)+\{.*\}'
+	mut def_re := regex.regex_opt(def_pattern) or { panic(err) }
+	defs := def_re.find_all_str(input)
+	dump(def_re)
+	dump(TestCases{}.text_01)
+	dump(defs)
 }
 
 fn test_stylesheet_parsing_empty() {

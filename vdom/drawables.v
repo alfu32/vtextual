@@ -13,6 +13,11 @@ pub mut:
 	z i64
 }
 
+pub fn (mut a Point) next_z() i64 {
+	a.z += 1
+	return a.z
+}
+
 pub fn (a Point) add(b Point) Point {
 	return Point{
 		x: a.x + b.x
@@ -46,31 +51,31 @@ pub mut:
 }
 
 // Box.z = 0
-pub fn (bb BoundingBox) translate(p Point) BoundingBox {
+pub fn (this BoundingBox) translate(p Point) BoundingBox {
 	return BoundingBox{
 		typ: 'box'
-		x:   bb.x + p.x
-		y:   bb.y + p.y
-		w:   bb.w
-		h:   bb.h
-		z:   bb.z + 1
+		x:   this.x + p.x
+		y:   this.y + p.y
+		w:   this.w
+		h:   this.h
+		z:   this.z + 1
 	}
 }
 
 // Box.z = 0
-pub fn (bb BoundingBox) top_left() Point {
+pub fn (this BoundingBox) top_left() Point {
 	return Point{
-		x: bb.x
-		y: bb.y
-		z: bb.z
+		x: this.x
+		y: this.y
+		z: this.z
 	}
 }
 
-pub fn (bb BoundingBox) grow(n i64) BoundingBox {
-	mut nw := bb.w
-	mut nh := bb.h
-	mut ny := bb.y
-	mut nx := bb.x
+pub fn (this BoundingBox) grow(n i64) BoundingBox {
+	mut nw := this.w
+	mut nh := this.h
+	mut ny := this.y
+	mut nx := this.x
 	if nw + 2 * n > 0 {
 		nw = nw + 2 * n
 		nx = nx - n
@@ -85,31 +90,68 @@ pub fn (bb BoundingBox) grow(n i64) BoundingBox {
 		y:   ny
 		w:   nw
 		h:   nh
-		z:   bb.z + 1
+		z:   this.z + 1
 	}
 }
 
-pub fn (bb BoundingBox) add(c BoundingBox) BoundingBox {
-	x0 := math.min(bb.x, c.x)
-	y0 := math.min(bb.y, c.y)
-	x1 := math.max(bb.x + bb.w, c.x + c.w)
-	y1 := math.max(bb.y + bb.w, c.y + bb.h)
+pub fn (this BoundingBox) add(c BoundingBox) BoundingBox {
+	x0 := math.min(this.x, c.x)
+	y0 := math.min(this.y, c.y)
+	x1 := math.max(this.x + this.w, c.x + c.w)
+	y1 := math.max(this.y + this.w, c.y + this.h)
 	return BoundingBox{
-		typ: bb.typ
+		typ: this.typ
 		x:   x0
 		y:   y0
 		w:   x1 - x0
 		h:   y1 - y0
-		z:   bb.z + 1
+		z:   this.z + 1
 	}
 }
 
-pub fn (bb BoundingBox) str() string {
-	return '[${bb.x},${bb.y},${bb.x + bb.w},${bb.y + bb.h}]'
+// contains returns true if the receiver this contains the other box
+pub fn (this BoundingBox) contains(other BoundingBox) bool {
+	return other.x > this.x && other.y > this.y && (other.x + other.w) < (this.x + this.w)
+		&& (other.y + other.h) < (this.y + this.h)
+}
+
+// intersects returns true if the receiver this intersects the other box
+pub fn (this BoundingBox) intersects(other BoundingBox) bool {
+	return this.x < (other.x + other.w) && (this.x + this.w) > other.x
+		&& this.y < (other.y + other.h) && (this.y + this.h) > other.y
+}
+
+//  returns true if the receiver this overlaps the other box
+pub fn (this BoundingBox) overlaps(other BoundingBox) bool {
+	return this.contains(other) || this.intersects(other) || other.contains(this)
+}
+
+// intersects returns the intersection between the receiver the other box
+pub fn (this BoundingBox) intersection(c BoundingBox) BoundingBox {
+	x1 := math.max(this.x, c.x)
+	y1 := math.max(this.y, c.y)
+	x2 := math.min(this.x + this.w, c.x + c.w)
+	y2 := math.min(this.y + this.h, c.y + c.h)
+
+	if x2 <= x1 || y2 <= y1 {
+		return BoundingBox{} // empty box (0 width/height)
+	}
+	return BoundingBox{
+		x: x1
+		y: y1
+		w: x2 - x1
+		h: y2 - y1
+		z: math.max(this.z, c.z)
+	}
+}
+
+pub fn (this BoundingBox) str() string {
+	return '[${this.x},${this.y},${this.x + this.w},${this.y + this.h}]'
 }
 
 @[heap]
 pub struct Rect {
+pub mut:
 	typ          string = 'rect'
 	css          string
 	x            i64
@@ -122,6 +164,7 @@ pub struct Rect {
 
 @[heap]
 pub struct Horizontal {
+pub mut:
 	typ          string = 'horizontal'
 	css          string
 	x            i64
@@ -133,6 +176,7 @@ pub struct Horizontal {
 
 @[heap]
 pub struct Vertical {
+pub mut:
 	typ          string = 'vertical'
 	css          string
 	x            i64
@@ -144,6 +188,7 @@ pub struct Vertical {
 
 @[heap]
 pub struct Text {
+pub mut:
 	typ          string = 'text'
 	css          string
 	x            i64
@@ -153,7 +198,17 @@ pub struct Text {
 	z_index      i64
 }
 
+@[heap]
 pub type Drawable = Rect | Horizontal | Vertical | Text
+
+pub fn (d &Drawable) translate(p Point) &Drawable {
+	unsafe {
+		mut dd := d
+		dd.x += p.x
+		dd.y += p.y
+		return d
+	}
+}
 
 pub fn (d Drawable) get_bounding_box() BoundingBox {
 	return match d {

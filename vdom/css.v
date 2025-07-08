@@ -20,6 +20,17 @@ pub mut:
 	value i64
 }
 
+pub fn (this CSSDimension) get_value(parent_value i64) i64 {
+	return match this.typ {
+		.auto { this.value }
+		.none { this.value }
+		.chars { this.value }
+		.percent { (this.value * parent_value) / 100 }
+		.fraction { this.value }
+		.undefined { this.value }
+	}
+}
+
 pub fn (this CSSDimension) accumulate(other CSSDimension) CSSDimension {
 	return if other.typ != .undefined { other } else { this }
 }
@@ -128,6 +139,20 @@ pub fn (cssp CSSPosition) accumulate(other CSSPosition) CSSPosition {
 
 pub fn (cssp CSSPosition) override(other CSSPosition) CSSPosition {
 	return if other != .undefined { other } else { cssp }
+}
+
+pub enum CSSDirection {
+	ltr
+	ttb
+	undefined
+}
+
+pub fn (cssd CSSDirection) accumulate(other CSSDirection) CSSDirection {
+	return if other != .undefined { other } else { cssd }
+}
+
+pub fn (cssd CSSDirection) override(other CSSDirection) CSSDirection {
+	return if other != .undefined { other } else { cssd }
 }
 
 pub enum BoxSizing {
@@ -346,6 +371,7 @@ pub struct CSSStyle {
 pub mut:
 	display    CSSDisplay     = .undefined
 	position   CSSPosition    = .undefined
+	direction  CSSDirection   = .undefined
 	top        CSSDimension   = css_dimension_new()
 	left       CSSDimension   = css_dimension_new()
 	width      CSSDimension   = css_dimension_new()
@@ -380,13 +406,13 @@ pub fn (this CSSStyle) copy() CSSStyle {
 	}
 }
 
-pub fn (style CSSStyle) get_css_box() BoundingBox {
+pub fn (style CSSStyle) get_css_box(parent_box BoundingBox) BoundingBox {
 	return BoundingBox{
 		typ: 'CssBox'
-		x:   style.left.value
-		y:   style.top.value
-		w:   style.width.value
-		h:   style.height.value
+		x:   style.left.get_value(parent_box.w)
+		y:   style.top.get_value(parent_box.h)
+		w:   style.width.get_value(parent_box.w)
+		h:   style.height.get_value(parent_box.h)
 		z:   0
 	}
 }
@@ -395,6 +421,7 @@ pub fn (this CSSStyle) accumulate(other CSSStyle) CSSStyle {
 	mut new_style := this.copy()
 	new_style.display = this.display.accumulate(other.display)
 	new_style.position = this.position.accumulate(other.position)
+	new_style.direction = this.direction.accumulate(other.direction)
 	new_style.top = this.top.accumulate(other.top)
 	new_style.left = this.left.accumulate(other.left)
 	new_style.width = this.width.accumulate(other.width)
@@ -412,6 +439,7 @@ pub fn (this CSSStyle) override(other CSSStyle) CSSStyle {
 	mut new_style := css_style_new()
 	new_style.display = this.display.override(other.display)
 	new_style.position = this.position.override(other.position)
+	new_style.direction = this.direction.override(other.direction)
 	new_style.top = this.top.override(other.top)
 	new_style.left = this.left.override(other.left)
 	new_style.width = this.width.override(other.width)
@@ -433,6 +461,9 @@ pub fn (this CSSStyle) to_string() string {
 	}
 	if stl.position != this.position {
 		txt << 'position:${this.position.str()}'
+	}
+	if stl.direction != this.direction {
+		txt << 'direction:${this.direction.str()}'
 	}
 	if stl.top != this.top {
 		txt << 'top:${this.top.to_string()}'
@@ -661,7 +692,17 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 		'position' {
 			match val.to_lower() {
 				'relative-parent' { this.position = .relative_parent }
+				'relative-sibling' { this.position = .relative_sibling }
+				'absolute' { this.position = .absolute }
+				'undefined' { this.position = .undefined }
 				else { this.position = .undefined }
+			}
+		}
+		'direction' {
+			match val.to_lower() {
+				'ltr' { this.direction = .ltr }
+				'ttb' { this.direction = .ttb }
+				else { this.direction = .undefined }
 			}
 		}
 		'top' {
@@ -685,6 +726,12 @@ pub fn (mut this CSSStyle) set(key string, val string) {
 				def := parts2[0]
 				this.border.definition = css_border_definition(def)
 				match def.to_lower() {
+					'undefined' {
+						this.border.style = .undefined
+					}
+					'none' {
+						this.border.style = .none
+					}
 					'default' {
 						this.border.style = .default
 					}

@@ -23,22 +23,22 @@ pub fn vt_renderer_init(html string, css string, width u32, height u32) VTRender
 }
 
 pub fn (vt VTRenderer) render_debug() {
-	print(vt)
+	println(vt)
 	for node_id, drawables in vt.canvas.render(vt.document, vt.stylesheet) {
 		println(node_id)
 		for drawable in drawables {
 			match drawable {
 				Rect {
-					println(drawable)
+					println(drawable.color_config.apply('${drawable}'))
 				}
 				Horizontal {
-					println(drawable)
+					println(drawable.color_config.apply('${drawable}'))
 				}
 				Vertical {
-					println(drawable)
+					println(drawable.color_config.apply('${drawable}'))
 				}
 				Text {
-					println(drawable)
+					println(drawable.color_config.apply('${drawable}'))
 				}
 			}
 		}
@@ -79,7 +79,7 @@ fn draw_rect(r Rect, node ?&DomNode) {
 		tx := ` `.repeat(int(r.width - 1)) // "${r.x:03}x${y:02}"+
 		print(r.color_config.apply(tx))
 	}
-	term.set_cursor_position(x: int(r.x + r.width) - 11, y: int(r.y + r.height) - 1)
+	// term.set_cursor_position(x: int(r.x + r.width) - 11, y: int(r.y + r.height) - 1)
 	// if node != none {
 	// 	print(' ${node.tag} ')
 	// } else {
