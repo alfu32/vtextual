@@ -1,12 +1,14 @@
 module vdom
 
 import term
+import term.ui as tui
 
-struct VTRenderer {
+pub struct VTRenderer {
 pub mut:
 	canvas     Canvas
 	document   &DOM
 	stylesheet &CssStylesheet
+	events     []&tui.Event
 }
 
 pub fn vt_renderer_init(html string, css string, width u32, height u32) VTRenderer {
@@ -45,11 +47,14 @@ pub fn (vt VTRenderer) render_debug() {
 	}
 }
 
-pub fn (vt VTRenderer) render() {
+pub fn (mut vt VTRenderer) render() ? {
 	term.set_cursor_position(x: 0, y: 0)
 	for node_id, drawables in vt.canvas.render(vt.document, vt.stylesheet) {
-		node := vt.document.find_node(node_id)
+		mut node := vt.document.find_node(node_id)
+		// if node != none {
 		_ := node_id
+		mut has_event := vt.events.len > 0
+		mut raise_event := false
 		for drawable in drawables {
 			match drawable {
 				Rect {
@@ -65,10 +70,28 @@ pub fn (vt VTRenderer) render() {
 					draw_text(drawable, node)
 				}
 			}
+			if !raise_event {
+				if has_event {
+					mut event := vt.events[0]
+					raise_event = drawable.get_bounding_box().contains_point(x: event.x, y: event.y)
+				}
+			}
 		}
+		if raise_event {
+			if has_event {
+				mut event := vt.events[0]
+				node?.dispatch_event(event)
+				vt.events.delete(0)
+			}
+		}
+		// }
 	}
 	term.set_cursor_position(x: 0, y: int(vt.canvas.height + 1))
 	println(term.reset('\n'))
+}
+
+pub fn (mut vt VTRenderer) dispatch_event(e &tui.Event) {
+	vt.events << e
 }
 
 fn draw_rect(r Rect, node ?&DomNode) {

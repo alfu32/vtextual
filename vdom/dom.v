@@ -3,38 +3,64 @@ module vdom
 import encoding.xml
 import strings
 import rand
+import term.ui as tui
+import term
 
 // callback type for event listeners
-pub type EventCallback = fn (node &DomNode)
+pub type EventCallback = fn (node &DomNode, e &tui.Event)
 
 // ─── DOM MODEL ────────────────────────────────────────────────────────────────────
 @[heap]
 pub struct DomNode {
 pub mut:
-	id              string = rand.uuid_v4()
-	tag             string
-	attributes      map[string]string
-	style           CSSStyle
-	event_listeners map[string][]EventCallback
-	children        []&DomNode
-	parent          &DomNode
-	dirty           bool
-	text            string
-	scroll          Point
+	id             string = rand.uuid_v4()
+	tag            string
+	attributes     map[string]string
+	style          CSSStyle
+	event_listener EventCallback = fn (node &DomNode, e &tui.Event) {}
+	children       []&DomNode
+	parent         &DomNode
+	dirty          bool
+	text           string
+	scroll         Point
+}
+
+pub fn (node &DomNode) dispatch_event(e &tui.Event) {
+	mut n := node
+	n.children[0].text = '${e.typ} ${n.children[0].text}'
+	match e.typ {
+		.unknown {}
+		.mouse_down {}
+		.mouse_up {}
+		.mouse_move {}
+		.mouse_drag {}
+		.mouse_scroll {
+			match e.direction {
+				.unknown {}
+				.up { n.scroll.y -= 1 }
+				.down { n.scroll.y += 1 }
+				.left { n.scroll.x -= 1 }
+				.right { n.scroll.x += 1 }
+			}
+		}
+		.key_down {}
+		.resized {}
+	}
+	// n.event_listener(&node,e)
 }
 
 // returns a DomNode with all defaults
 pub fn dom_node_new() DomNode {
 	return DomNode{
-		id:              rand.uuid_v4()
-		tag:             ''
-		attributes:      map[string]string{}
-		style:           css_style_new()
-		event_listeners: map[string][]EventCallback{}
-		children:        []&DomNode{}
-		parent:          unsafe { nil }
-		dirty:           false
-		text:            ''
+		id:             rand.uuid_v4()
+		tag:            ''
+		attributes:     map[string]string{}
+		style:          css_style_new()
+		event_listener: fn (node &DomNode, e &tui.Event) {}
+		children:       []&DomNode{}
+		parent:         unsafe { nil }
+		dirty:          false
+		text:           ''
 	}
 }
 
@@ -141,14 +167,14 @@ pub fn dom_parse(xml_frag string) DOM {
 fn build_dom_node(x xml.XMLNode, parent &DomNode) &DomNode {
 	style_str := x.attributes['style'] or { '' }
 	mut node := &DomNode{
-		tag:             x.name
-		attributes:      x.attributes.clone()
-		style:           css_style_parse(style_str)
-		event_listeners: map[string][]EventCallback{}
-		children:        []&DomNode{}
-		parent:          parent
-		dirty:           true
-		text:            ''
+		tag:            x.name
+		attributes:     x.attributes.clone()
+		style:          css_style_parse(style_str)
+		event_listener: fn (node &DomNode, e &tui.Event) {}
+		children:       []&DomNode{}
+		parent:         parent
+		dirty:          true
+		text:           ''
 	}
 	// recurse into the mixed-content children
 	for child in x.children {
@@ -158,38 +184,38 @@ fn build_dom_node(x xml.XMLNode, parent &DomNode) &DomNode {
 			}
 			xml.XMLCData {
 				&DomNode{
-					tag:             '#cdata'
-					attributes:      map[string]string{}
-					style:           css_style_new()
-					event_listeners: map[string][]EventCallback{}
-					children:        []&DomNode{}
-					parent:          voidptr(node)
-					dirty:           true
-					text:            child.text
+					tag:            '#cdata'
+					attributes:     map[string]string{}
+					style:          css_style_new()
+					event_listener: fn (node &DomNode, e &tui.Event) {}
+					children:       []&DomNode{}
+					parent:         voidptr(node)
+					dirty:          true
+					text:           child.text
 				}
 			}
 			xml.XMLComment {
 				&DomNode{
-					tag:             '#comment'
-					attributes:      map[string]string{}
-					style:           css_style_new()
-					event_listeners: map[string][]EventCallback{}
-					children:        []&DomNode{}
-					parent:          voidptr(node)
-					dirty:           true
-					text:            child.text
+					tag:            '#comment'
+					attributes:     map[string]string{}
+					style:          css_style_new()
+					event_listener: fn (node &DomNode, e &tui.Event) {}
+					children:       []&DomNode{}
+					parent:         voidptr(node)
+					dirty:          true
+					text:           child.text
 				}
 			}
 			else {
 				&DomNode{
-					tag:             '#text'
-					attributes:      map[string]string{}
-					style:           css_style_new()
-					event_listeners: map[string][]EventCallback{}
-					children:        []&DomNode{}
-					parent:          voidptr(node)
-					dirty:           true
-					text:            child.str()
+					tag:            '#text'
+					attributes:     map[string]string{}
+					style:          css_style_new()
+					event_listener: fn (node &DomNode, e &tui.Event) {}
+					children:       []&DomNode{}
+					parent:         voidptr(node)
+					dirty:          true
+					text:           child.str()
 						.replace("xml.XMLNodeContents('", '')
 						.replace("')", '')
 				}

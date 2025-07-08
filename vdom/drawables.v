@@ -115,6 +115,11 @@ pub fn (this BoundingBox) contains(other BoundingBox) bool {
 		&& (other.y + other.h) < (this.y + this.h)
 }
 
+// contains returns true if the receiver this contains the other box
+pub fn (this BoundingBox) contains_point(p Point) bool {
+	return p.x > this.x && p.y > this.y && p.x < (this.x + this.w) && p.y < (this.y + this.h)
+}
+
 // intersects returns true if the receiver this intersects the other box
 pub fn (this BoundingBox) intersects(other BoundingBox) bool {
 	return this.x < (other.x + other.w) && (this.x + this.w) > other.x

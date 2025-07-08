@@ -8,9 +8,9 @@ pub mut:
 	style    CSSStyle
 }
 
-type CssSelector = string
+pub type CssSelector = string
 
-struct CssStylesheet {
+pub struct CssStylesheet {
 pub mut:
 	styles map[CssSelector]CSSStyle
 }
